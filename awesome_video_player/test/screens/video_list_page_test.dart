@@ -1,108 +1,156 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bloc_test/bloc_test.dart';
+import 'package:awesome_video_player/domain/entities/video_file.dart';
+import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_bloc.dart';
+import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_event.dart';
+import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_state.dart';
+import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
+import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart' as theme_state; // aliased
 import 'package:awesome_video_player/presentation/screens/video_list_page.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart'; // For mock
-import 'dart:io'; // For Directory
+import 'package:awesome_video_player/presentation/theme/app_themes.dart';
+// Mock for path_provider and permission_handler are no longer needed here,
+// as we will mock the BLoC layer.
 
-// Mock for PathProvider
-class MockPathProviderPlatform extends Fake
-    with MockPlatformInterfaceMixin
-    implements PathProviderPlatform {
-  @override
-  Future<String?> getTemporaryPath() async => '/tmp/temp';
-  @override
-  Future<String?> getApplicationSupportPath() async => '/tmp/app_support';
-  @override
-  Future<String?> getApplicationDocumentsPath() async => '/tmp/app_docs';
-  @override
-  Future<String?> getExternalStoragePath() async => '/tmp/external_storage';
-  @override
-  Future<List<String>?> getExternalCachePaths() async => ['/tmp/external_cache'];
-  @override
-  Future<List<String>?> getExternalStoragePaths({
-    StorageDirectory? type,
-  }) async {
-    // Return a valid, existing temporary directory for testing purposes
-    final tempDir = await Directory.systemTemp.createTemp('mock_ext_storage_');
-    return [tempDir.path];
-  }
-  @override
-  Future<String?> getDownloadsPath() async => '/tmp/downloads';
-}
+// Mock BLoCs
+class MockVideoListBloc extends MockBloc<VideoListEvent, VideoListState> implements VideoListBloc {}
+class MockThemeBloc extends MockBloc<ThemeEvent, theme_state.ThemeState> implements ThemeBloc {}
 
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // Mock for permission_handler
-  // This basic mock assumes permissions are granted.
-  // More complex tests would involve testing denied/permanentlyDenied states.
-  setUpAll(() {
-    // Setup mock path provider
-    PathProviderPlatform.instance = MockPathProviderPlatform();
+  late MockVideoListBloc mockVideoListBloc;
+  late MockThemeBloc mockThemeBloc;
 
-    // Mock permission_handler
-    // This is a very basic way to mock. For more complex scenarios,
-    // you might use a library like `mockito` to create a mock class
-    // that implements the `PermissionHandlerPlatform` interface.
-    // For this test, we'll assume permissions are granted.
-    // This requires careful setup to ensure it's effective.
-    // A common way is to mock the method channel.
-    // As a simpler placeholder for this test, we focus on UI given permissions.
-    // The actual permission request logic is complex to mock without deeper setup.
-    // We'll assume the VideoListPage handles the permission states internally
-    // and test for UI elements that appear based on those states (e.g., loading, message).
+  setUp(() {
+    mockVideoListBloc = MockVideoListBloc();
+    mockThemeBloc = MockThemeBloc();
+
+    // Default state for ThemeBloc for SettingsPage navigation to work
+    whenListen(
+      mockThemeBloc,
+      Stream.fromIterable([const theme_state.ThemeLoaded(ThemeMode.light)]),
+      initialState: const theme_state.ThemeLoaded(ThemeMode.light),
+    );
   });
 
-
   Widget createTestableWidget(Widget child) {
-    return MaterialApp(
-      home: child,
-      // If VideoListPage uses Navigator for other things, provide routes here
-      routes: {
-        // '/some_other_route': (_) => SomeOtherPage(),
-      },
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<VideoListBloc>.value(value: mockVideoListBloc),
+        BlocProvider<ThemeBloc>.value(value: mockThemeBloc),
+      ],
+      child: MaterialApp(
+        theme: AppThemes.lightTheme,
+        darkTheme: AppThemes.darkTheme,
+        home: child,
+        // Need to provide routes if SettingsPage or VideoPlayerPage are pushed by name
+        // For direct MaterialPageRoute, this is less critical but good practice.
+        routes: {
+          // Define routes if SettingsPage or VideoPlayerPage are pushed by name during tests
+          // For now, VideoListPage itself is the 'child'
+        },
+      ),
     );
   }
 
-  group('VideoListPage Widget Tests', () {
-    testWidgets('Displays AppBar with correct title', (WidgetTester tester) async {
+  final tVideos = [VideoFile(name: 'video1.mp4', path: '/video1.mp4')];
+
+  group('VideoListPage Widget Tests with MockVideoListBloc', () {
+    testWidgets('Displays AppBar and initial state (usually loading)', (WidgetTester tester) async {
+      whenListen(
+        mockVideoListBloc,
+        Stream.fromIterable([VideoListInitial(), VideoListLoading()]),
+        initialState: VideoListInitial(),
+      );
+
       await tester.pumpWidget(createTestableWidget(const VideoListPage()));
 
       expect(find.byType(AppBar), findsOneWidget);
       expect(find.text('My Videos'), findsOneWidget);
-      expect(find.byIcon(Icons.settings), findsOneWidget); // Settings icon
-    });
+      expect(find.byIcon(Icons.settings), findsOneWidget);
 
-    testWidgets('Shows loading indicator initially, then a message if no videos and permissions granted', (WidgetTester tester) async {
-      // This test assumes permissions will be granted by default due to test setup or mocks.
-      // It also assumes no video files will be found by the mocked path_provider.
-
-      await tester.pumpWidget(createTestableWidget(const VideoListPage()));
-
-      // Initially, should show loading indicator
+      // VideoListPage dispatches LoadVideos on init through BlocProvider.create.
+      // So, it will quickly move to Loading state.
+      await tester.pump(); // Initial pump for BlocProvider create
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
-      // Pump through the initState and _fetchVideos() method
-      // The duration here needs to be enough for async operations like permission requests
-      // and file system scanning (even if mocked) to complete.
-      await tester.pumpAndSettle(const Duration(seconds: 2)); // Increased duration
-
-      // After loading, if no videos are found, it should display a message.
-      // The exact message depends on the VideoListPage's implementation.
-      // Checking for part of a common message.
-      expect(find.textContaining('No video files found', findRichText: true), findsOneWidget);
-      // Or, if it's the "No accessible media directories found" message:
-      // expect(find.textContaining('No accessible media directories found', findRichText: true), findsOneWidget);
-
-      // Ensure no videos are listed
-      expect(find.byType(ListTile), findsNothing);
     });
 
-    // Add more tests here, e.g.:
-    // - What happens if permissions are denied (would require more advanced mocking of permission_handler)
-    // - What happens if video files *are* found (would require mocking file system reads)
+    testWidgets('Displays loading indicator for VideoListLoading state', (WidgetTester tester) async {
+      whenListen(
+        mockVideoListBloc,
+        Stream.fromIterable([VideoListLoading()]),
+        initialState: VideoListLoading(),
+      );
+      await tester.pumpWidget(createTestableWidget(const VideoListPage()));
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('Displays list of videos for VideoListLoaded state', (WidgetTester tester) async {
+      whenListen(
+        mockVideoListBloc,
+        Stream.fromIterable([VideoListLoaded(tVideos)]),
+        initialState: VideoListLoaded(tVideos),
+      );
+      await tester.pumpWidget(createTestableWidget(const VideoListPage()));
+      await tester.pumpAndSettle(); // Settle animations/list rendering
+
+      expect(find.byType(ListView), findsOneWidget);
+      expect(find.text('video1.mp4'), findsOneWidget);
+      expect(find.byType(ListTile), findsNWidgets(tVideos.length));
+    });
+
+    testWidgets('Displays "No videos found" for VideoListLoaded with empty list and allows retry', (WidgetTester tester) async {
+      whenListen(
+        mockVideoListBloc,
+        Stream.fromIterable([const VideoListLoaded([])]),
+        initialState: const VideoListLoaded([]),
+      );
+      await tester.pumpWidget(createTestableWidget(const VideoListPage()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No videos found.'), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, 'Try Again'), findsOneWidget);
+
+      // Test retry button
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Try Again'));
+      verify(() => mockVideoListBloc.add(LoadVideos())).called(1);
+    });
+
+    testWidgets('Displays error message for VideoListError state and allows retry', (WidgetTester tester) async {
+      const errorMessage = 'Failed to load videos';
+      whenListen(
+        mockVideoListBloc,
+        Stream.fromIterable([const VideoListError(errorMessage)]),
+        initialState: const VideoListError(errorMessage),
+      );
+      await tester.pumpWidget(createTestableWidget(const VideoListPage()));
+      await tester.pumpAndSettle();
+
+      expect(find.text(errorMessage), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, 'Try Again'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Try Again'));
+      verify(() => mockVideoListBloc.add(LoadVideos())).called(1);
+    });
+
+    testWidgets('Displays permission denied message for VideoListPermissionDenied state and allows retry', (WidgetTester tester) async {
+      const permissionMessage = 'Video permission denied';
+      whenListen(
+        mockVideoListBloc,
+        Stream.fromIterable([const VideoListPermissionDenied(permissionMessage)]),
+        initialState: const VideoListPermissionDenied(permissionMessage),
+      );
+      await tester.pumpWidget(createTestableWidget(const VideoListPage()));
+      await tester.pumpAndSettle();
+
+      expect(find.text(permissionMessage), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, 'Retry Permissions / Load'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Retry Permissions / Load'));
+      verify(() => mockVideoListBloc.add(LoadVideos())).called(1);
+    });
   });
 }

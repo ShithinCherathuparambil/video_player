@@ -17,6 +17,9 @@ dependencies:
   path_provider: ^2.1.3
   shared_preferences: ^2.2.3
 
+  flutter_bloc: ^8.1.5
+  equatable: ^2.0.5
+
   cupertino_icons: ^1.0.6
 
 dev_dependencies:
@@ -24,7 +27,8 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^3.0.0
-  mockito: ^5.4.4 # Added for testing
+  mockito: ^5.4.4
+  bloc_test: ^9.1.7 # Added for BLoC testing
 
 flutter:
   uses-material-design: true
