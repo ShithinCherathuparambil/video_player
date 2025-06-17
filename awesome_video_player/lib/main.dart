@@ -7,7 +7,8 @@ import 'package:awesome_video_player/presentation/screens/splash_screen.dart';
 
 void main() {
   runApp(
-    BlocProvider<ThemeBloc>( // Changed from ChangeNotifierProvider
+    BlocProvider<ThemeBloc>(
+      // Changed from ChangeNotifierProvider
       create: (_) => ThemeBloc.create(), // Changed to ThemeBloc.create()
       child: const MyApp(),
     ),
@@ -21,14 +22,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // Removed: final themeProvider = Provider.of<ThemeProvider>(context);
 
-    return BlocBuilder<ThemeBloc, ThemeState>( // Added BlocBuilder
+    return BlocBuilder<ThemeBloc, ThemeState>(
+      // Added BlocBuilder
       builder: (context, themeState) {
         return MaterialApp(
           title: 'Awesome Video Player',
           theme: AppThemes.lightTheme,
           darkTheme: AppThemes.darkTheme,
           // Changed to use themeState from ThemeBloc
-          themeMode: (themeState is ThemeLoaded) ? themeState.themeMode : ThemeMode.system,
+          themeMode: (themeState is ThemeLoaded)
+              ? themeState.themeMode
+              : ThemeMode.system,
           home: const SplashScreen(),
           debugShowCheckedModeBanner: false,
         );
