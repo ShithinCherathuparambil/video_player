@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart';
-import 'package:awesome_video_player/presentation/screens/splash_screen.dart'; // Correct import
+import 'package:flutter_bloc/flutter_bloc.dart'; // Added
+import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart'; // Added
+import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart'; // Added
 import 'package:awesome_video_player/presentation/theme/app_themes.dart';
+import 'package:awesome_video_player/presentation/screens/splash_screen.dart';
 
 void main() {
-  // Optional: Ensure bindings are initialized if needed for plugins before runApp.
-  // WidgetsFlutterBinding.ensureInitialized();
-
   runApp(
-    BlocProvider<ThemeBloc>(
-      create: (context) => ThemeBloc.create(),
+    BlocProvider<ThemeBloc>( // Changed from ChangeNotifierProvider
+      create: (_) => ThemeBloc.create(), // Changed to ThemeBloc.create()
       child: const MyApp(),
     ),
   );
@@ -22,20 +19,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeBloc, ThemeState>(
-      builder: (context, state) {
-        ThemeMode currentThemeMode = ThemeMode.system;
-        if (state is ThemeLoaded) {
-          currentThemeMode = state.themeMode;
-        }
-        // Other states (Initial, Loading, Error) will use ThemeMode.system by default.
+    // Removed: final themeProvider = Provider.of<ThemeProvider>(context);
 
+    return BlocBuilder<ThemeBloc, ThemeState>( // Added BlocBuilder
+      builder: (context, themeState) {
         return MaterialApp(
           title: 'Awesome Video Player',
           theme: AppThemes.lightTheme,
           darkTheme: AppThemes.darkTheme,
-          themeMode: currentThemeMode,
-          home: const SplashScreen(), // Correctly set
+          // Changed to use themeState from ThemeBloc
+          themeMode: (themeState is ThemeLoaded) ? themeState.themeMode : ThemeMode.system,
+          home: const SplashScreen(),
           debugShowCheckedModeBanner: false,
         );
       },
