@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart'; // Import Bloc
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
 import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_event.dart';
 import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart';
@@ -9,24 +9,23 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // For dispatching events, context.read<ThemeBloc>() is fine.
-    // For reacting to state changes for the Switch value, BlocBuilder is more explicit.
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
       ),
       body: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, state) {
-          bool isDarkMode = false; // Default to false
+          bool isDarkMode = false;
           if (state is ThemeLoaded) {
             isDarkMode = state.themeMode == ThemeMode.dark;
           } else if (state is ThemeInitial || state is ThemeLoading) {
-            // Optionally, get current system brightness if ThemeBloc not loaded yet,
-            // or disable switch until ThemeLoaded. For simplicity, default to false.
-            // var brightness = MediaQuery.of(context).platformBrightness;
-            // isDarkMode = brightness == Brightness.dark;
+            // Default to false or consider system brightness if preferred for initial states
+            // For instance:
+            // if (state is ThemeInitial) { // Only on very first load before ThemeBloc emits ThemeLoaded from storage
+            //    isDarkMode = MediaQuery.of(context).platformBrightness == Brightness.dark;
+            // }
           }
-          // If state is ThemeError, switch shows last known or default value.
+          // If state is ThemeError, it will use the last valid `isDarkMode` or default to false.
 
           return ListView(
             children: <Widget>[
@@ -40,25 +39,24 @@ class SettingsPage extends StatelessWidget {
                   },
                 ),
               ),
-              // Example for ThemeMode selection if you want System/Light/Dark options:
-              // if (state is ThemeLoaded) { // Ensure state is loaded to show current selection
+              // Placeholder for future "System" theme option
+              // if (state is ThemeLoaded)
               //   ListTile(
-              //     title: Text('Theme Mode Selection'),
-              //     trailing: DropdownButton<ThemeMode>(
-              //       value: state.themeMode,
-              //       items: const [
-              //         DropdownMenuItem(value: ThemeMode.system, child: Text('System')),
-              //         DropdownMenuItem(value: ThemeMode.light, child: Text('Light')),
-              //         DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
-              //       ],
-              //       onChanged: (ThemeMode? mode) {
-              //         if (mode != null) {
-              //           context.read<ThemeBloc>().add(ChangeTheme(mode)); // Assuming ChangeTheme takes ThemeMode
+              //     title: const Text('Follow System Theme'),
+              //     trailing: Switch(
+              //       value: state.themeMode == ThemeMode.system,
+              //       onChanged: (bool value) {
+              //         if (value) {
+              //           context.read<ThemeBloc>().add(ChangeTheme(ThemeMode.system));
+              //         } else {
+              //           // When turning off "Follow System", revert to light/dark based on current actual brightness or last explicit choice
+              //           // This logic might need refinement depending on desired UX.
+              //           var currentActualBrightnessIsDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+              //           context.read<ThemeBloc>().add(ChangeTheme(currentActualBrightnessIsDark ? ThemeMode.dark : ThemeMode.light));
               //         }
               //       },
               //     ),
               //   ),
-              // }
             ],
           );
         },
