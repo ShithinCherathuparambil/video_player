@@ -8,17 +8,27 @@ abstract class VideoListState extends Equatable {
   List<Object> get props => [];
 }
 
-class VideoListInitial extends VideoListState {}
+class VideoListInitial extends VideoListState {
+  const VideoListInitial();
+}
 
-class VideoListLoading extends VideoListState {}
+class VideoListLoading extends VideoListState {
+  const VideoListLoading();
+}
 
 class VideoListLoaded extends VideoListState {
   final List<VideoFile> videos;
+  final DateTime timestamp;
 
-  const VideoListLoaded(this.videos);
+  VideoListLoaded(this.videos, {DateTime? timestamp})
+      : timestamp = timestamp ?? DateTime.now();
 
   @override
-  List<Object> get props => [videos];
+  List<Object> get props => [videos, timestamp];
+}
+
+class VideoListEmpty extends VideoListState {
+  const VideoListEmpty();
 }
 
 class VideoListError extends VideoListState {

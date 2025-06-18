@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart'; // Added
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart'; // Added
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart'; // Added
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
+import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_event.dart';
+import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart';
+import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_bloc.dart';
+import 'package:awesome_video_player/presentation/blocs/last_played_bloc/last_played_bloc.dart';
+import 'package:awesome_video_player/presentation/blocs/favorites_bloc/favorites_bloc.dart';
 import 'package:awesome_video_player/presentation/theme/app_themes.dart';
 import 'package:awesome_video_player/presentation/screens/splash_screen.dart';
 
-void main() {
-  runApp(
-    BlocProvider<ThemeBloc>(
-      // Changed from ChangeNotifierProvider
-      create: (_) => ThemeBloc.create(), // Changed to ThemeBloc.create()
-      child: const MyApp(),
-    ),
-  );
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -20,23 +20,35 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Removed: final themeProvider = Provider.of<ThemeProvider>(context);
-
-    return BlocBuilder<ThemeBloc, ThemeState>(
-      // Added BlocBuilder
-      builder: (context, themeState) {
-        return MaterialApp(
-          title: 'Awesome Video Player',
-          theme: AppThemes.lightTheme,
-          darkTheme: AppThemes.darkTheme,
-          // Changed to use themeState from ThemeBloc
-          themeMode: (themeState is ThemeLoaded)
-              ? themeState.themeMode
-              : ThemeMode.system,
-          home: const SplashScreen(),
-          debugShowCheckedModeBanner: false,
-        );
-      },
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<ThemeBloc>(
+          create: (context) => ThemeBloc.create()..add(LoadTheme()),
+        ),
+        BlocProvider<VideoListBloc>(
+          create: (context) => VideoListBloc.create(),
+        ),
+        BlocProvider<LastPlayedBloc>(
+          create: (context) => LastPlayedBloc.create(),
+        ),
+        BlocProvider<FavoritesBloc>(
+          create: (context) => FavoritesBloc.create(),
+        ),
+      ],
+      child: BlocBuilder<ThemeBloc, ThemeState>(
+        builder: (context, themeState) {
+          return MaterialApp(
+            title: 'Awesome Video Player',
+            theme: AppThemes.lightTheme,
+            darkTheme: AppThemes.darkTheme,
+            themeMode: themeState is ThemeLoaded
+                ? themeState.themeMode
+                : ThemeMode.system,
+            home: const SplashScreen(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
+      ),
     );
   }
 }

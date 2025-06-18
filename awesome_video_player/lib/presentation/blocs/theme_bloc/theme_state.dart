@@ -10,15 +10,32 @@ abstract class ThemeState extends Equatable {
 
 class ThemeInitial extends ThemeState {}
 
-class ThemeLoading extends ThemeState {} // Optional: if loading is async and needs UI feedback
+class ThemeLoading
+    extends ThemeState {} // Optional: if loading is async and needs UI feedback
 
 class ThemeLoaded extends ThemeState {
   final ThemeMode themeMode;
+  final bool isGridView;
+  final bool subtitlesEnabled;
+  final String videoDecoder;
+  final bool hardwareAcceleration;
 
-  const ThemeLoaded(this.themeMode);
+  const ThemeLoaded({
+    required this.themeMode,
+    this.isGridView = true, // Default to grid view
+    this.subtitlesEnabled = false, // Default to subtitles disabled
+    this.videoDecoder = 'auto', // Default to auto
+    this.hardwareAcceleration = true, // Default to enabled
+  });
 
   @override
-  List<Object?> get props => [themeMode];
+  List<Object?> get props => [
+        themeMode,
+        isGridView,
+        subtitlesEnabled,
+        videoDecoder,
+        hardwareAcceleration
+      ];
 }
 
 class ThemeError extends ThemeState {

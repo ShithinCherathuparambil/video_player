@@ -1,13 +1,12 @@
 import 'package:awesome_video_player/domain/entities/video_file.dart';
 import 'package:awesome_video_player/domain/repositories/video_repository.dart';
 
-class GetVideos {
+class GetFavoriteVideos {
   final VideoRepository repository;
 
-  GetVideos(this.repository);
+  GetFavoriteVideos(this.repository);
 
-  /// Executes the use case to retrieve a list of video files.
   Future<List<VideoFile>> call() async {
-    return await repository.getVideos();
+    return await repository.getFavoriteVideos();
   }
 }

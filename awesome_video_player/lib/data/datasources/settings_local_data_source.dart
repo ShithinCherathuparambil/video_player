@@ -4,6 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 abstract class SettingsLocalDataSource {
   Future<ThemeMode> getThemeMode();
   Future<void> saveThemeMode(ThemeMode mode);
+  Future<bool> getGridViewPreference();
+  Future<void> saveGridViewPreference(bool isGridView);
+  Future<bool> getSubtitlesEnabled();
+  Future<void> saveSubtitlesEnabled(bool enabled);
 }
 
 class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
@@ -11,6 +15,8 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   // final SharedPreferences sharedPreferences;
 
   static const String _themeModeKey = 'theme_mode';
+  static const String _gridViewKey = 'grid_view_preference';
+  static const String _subtitlesKey = 'subtitles_enabled';
 
   // Constructor no longer requires SharedPreferences
   SettingsLocalDataSourceImpl();
@@ -35,5 +41,29 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     if (mode == ThemeMode.light) themeString = 'light';
     if (mode == ThemeMode.dark) themeString = 'dark';
     await prefs.setString(_themeModeKey, themeString);
+  }
+
+  @override
+  Future<bool> getGridViewPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_gridViewKey) ?? true; // Default to grid view
+  }
+
+  @override
+  Future<void> saveGridViewPreference(bool isGridView) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_gridViewKey, isGridView);
+  }
+
+  @override
+  Future<bool> getSubtitlesEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_subtitlesKey) ?? true; // Default to enabled
+  }
+
+  @override
+  Future<void> saveSubtitlesEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_subtitlesKey, enabled);
   }
 }

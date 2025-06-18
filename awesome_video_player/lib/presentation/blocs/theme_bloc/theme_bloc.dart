@@ -19,6 +19,10 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
   }) : super(ThemeInitial()) {
     on<LoadTheme>(_onLoadTheme);
     on<ChangeTheme>(_onChangeTheme);
+    on<ToggleGridView>(_onToggleGridView);
+    on<ToggleSubtitles>(_onToggleSubtitles);
+    on<SetVideoDecoder>(_onSetVideoDecoder);
+    on<ToggleHardwareAcceleration>(_onToggleHardwareAcceleration);
 
     add(LoadTheme());
   }
@@ -27,21 +31,163 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
     emit(ThemeLoading());
     try {
       final appSettings = await getThemeSettings.call();
-      emit(ThemeLoaded(appSettings.themeMode));
+      emit(ThemeLoaded(
+        themeMode: appSettings.themeMode,
+        isGridView: appSettings.isGridView ?? true, // Default to grid view
+        subtitlesEnabled: appSettings.subtitlesEnabled,
+        videoDecoder: appSettings.videoDecoder,
+        hardwareAcceleration: appSettings.hardwareAcceleration,
+      ));
     } catch (e) {
       emit(ThemeError("Failed to load theme: ${e.toString()}"));
       // Fallback to a default theme if loading fails
-      emit(const ThemeLoaded(ThemeMode.system)); // Default to system on error
+      emit(const ThemeLoaded(
+        themeMode: ThemeMode.system,
+        isGridView: true,
+        subtitlesEnabled: false,
+        videoDecoder: 'auto',
+        hardwareAcceleration: true,
+      )); // Default to system on error
     }
   }
 
-  Future<void> _onChangeTheme(ChangeTheme event, Emitter<ThemeState> emit) async {
+  Future<void> _onChangeTheme(
+      ChangeTheme event, Emitter<ThemeState> emit) async {
     try {
-      final newAppSettings = AppSettings(themeMode: event.themeMode);
+      final currentState = state;
+      final isGridView =
+          currentState is ThemeLoaded ? currentState.isGridView : true;
+      final subtitlesEnabled =
+          currentState is ThemeLoaded ? currentState.subtitlesEnabled : false;
+      final videoDecoder =
+          currentState is ThemeLoaded ? currentState.videoDecoder : 'auto';
+      final hardwareAcceleration = currentState is ThemeLoaded
+          ? currentState.hardwareAcceleration
+          : true;
+
+      final newAppSettings = AppSettings(
+        themeMode: event.themeMode,
+        isGridView: isGridView,
+        subtitlesEnabled: subtitlesEnabled,
+        videoDecoder: videoDecoder,
+        hardwareAcceleration: hardwareAcceleration,
+      );
       await saveThemeSettings.call(newAppSettings);
-      emit(ThemeLoaded(event.themeMode));
+      emit(ThemeLoaded(
+        themeMode: event.themeMode,
+        isGridView: isGridView,
+        subtitlesEnabled: subtitlesEnabled,
+        videoDecoder: videoDecoder,
+        hardwareAcceleration: hardwareAcceleration,
+      ));
     } catch (e) {
       emit(ThemeError("Failed to save theme: ${e.toString()}"));
+    }
+  }
+
+  Future<void> _onToggleGridView(
+      ToggleGridView event, Emitter<ThemeState> emit) async {
+    try {
+      final currentState = state;
+      if (currentState is ThemeLoaded) {
+        final newAppSettings = AppSettings(
+          themeMode: currentState.themeMode,
+          isGridView: event.isGridView,
+          subtitlesEnabled: currentState.subtitlesEnabled,
+          videoDecoder: currentState.videoDecoder,
+          hardwareAcceleration: currentState.hardwareAcceleration,
+        );
+        await saveThemeSettings.call(newAppSettings);
+        emit(ThemeLoaded(
+          themeMode: currentState.themeMode,
+          isGridView: event.isGridView,
+          subtitlesEnabled: currentState.subtitlesEnabled,
+          videoDecoder: currentState.videoDecoder,
+          hardwareAcceleration: currentState.hardwareAcceleration,
+        ));
+      }
+    } catch (e) {
+      emit(ThemeError("Failed to save grid view preference: ${e.toString()}"));
+    }
+  }
+
+  Future<void> _onToggleSubtitles(
+      ToggleSubtitles event, Emitter<ThemeState> emit) async {
+    try {
+      final currentState = state;
+      if (currentState is ThemeLoaded) {
+        final newAppSettings = AppSettings(
+          themeMode: currentState.themeMode,
+          isGridView: currentState.isGridView,
+          subtitlesEnabled: event.subtitlesEnabled,
+          videoDecoder: currentState.videoDecoder,
+          hardwareAcceleration: currentState.hardwareAcceleration,
+        );
+        await saveThemeSettings.call(newAppSettings);
+        emit(ThemeLoaded(
+          themeMode: currentState.themeMode,
+          isGridView: currentState.isGridView,
+          subtitlesEnabled: event.subtitlesEnabled,
+          videoDecoder: currentState.videoDecoder,
+          hardwareAcceleration: currentState.hardwareAcceleration,
+        ));
+      }
+    } catch (e) {
+      emit(ThemeError("Failed to save subtitle preference: ${e.toString()}"));
+    }
+  }
+
+  Future<void> _onSetVideoDecoder(
+      SetVideoDecoder event, Emitter<ThemeState> emit) async {
+    try {
+      final currentState = state;
+      if (currentState is ThemeLoaded) {
+        final newAppSettings = AppSettings(
+          themeMode: currentState.themeMode,
+          isGridView: currentState.isGridView,
+          subtitlesEnabled: currentState.subtitlesEnabled,
+          videoDecoder: event.videoDecoder,
+          hardwareAcceleration: currentState.hardwareAcceleration,
+        );
+        await saveThemeSettings.call(newAppSettings);
+        emit(ThemeLoaded(
+          themeMode: currentState.themeMode,
+          isGridView: currentState.isGridView,
+          subtitlesEnabled: currentState.subtitlesEnabled,
+          videoDecoder: event.videoDecoder,
+          hardwareAcceleration: currentState.hardwareAcceleration,
+        ));
+      }
+    } catch (e) {
+      emit(ThemeError(
+          "Failed to save video decoder preference: ${e.toString()}"));
+    }
+  }
+
+  Future<void> _onToggleHardwareAcceleration(
+      ToggleHardwareAcceleration event, Emitter<ThemeState> emit) async {
+    try {
+      final currentState = state;
+      if (currentState is ThemeLoaded) {
+        final newAppSettings = AppSettings(
+          themeMode: currentState.themeMode,
+          isGridView: currentState.isGridView,
+          subtitlesEnabled: currentState.subtitlesEnabled,
+          videoDecoder: currentState.videoDecoder,
+          hardwareAcceleration: event.hardwareAcceleration,
+        );
+        await saveThemeSettings.call(newAppSettings);
+        emit(ThemeLoaded(
+          themeMode: currentState.themeMode,
+          isGridView: currentState.isGridView,
+          subtitlesEnabled: currentState.subtitlesEnabled,
+          videoDecoder: currentState.videoDecoder,
+          hardwareAcceleration: event.hardwareAcceleration,
+        ));
+      }
+    } catch (e) {
+      emit(ThemeError(
+          "Failed to save hardware acceleration preference: ${e.toString()}"));
     }
   }
 
@@ -50,13 +196,13 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
   static ThemeBloc create() {
     // SettingsLocalDataSourceImpl now fetches SharedPreferences internally.
     final settingsLocalDataSource = SettingsLocalDataSourceImpl();
-    final settingsRepository = SettingsRepositoryImpl(localDataSource: settingsLocalDataSource);
+    final settingsRepository =
+        SettingsRepositoryImpl(localDataSource: settingsLocalDataSource);
     final getThemeSettingsUseCase = GetThemeSettings(settingsRepository);
     final saveThemeSettingsUseCase = SaveThemeSettings(settingsRepository);
 
     return ThemeBloc(
         getThemeSettings: getThemeSettingsUseCase,
-        saveThemeSettings: saveThemeSettingsUseCase
-    );
+        saveThemeSettings: saveThemeSettingsUseCase);
   }
 }

@@ -1,13 +1,15 @@
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:video_player/video_player.dart';
+import 'package:awesome_video_player/domain/entities/video_file.dart';
+import 'package:awesome_video_player/core/error/exceptions.dart';
+import 'package:path/path.dart' as path;
+import 'package:photo_manager/photo_manager.dart';
 
 abstract class VideoLocalDataSource {
-  /// Fetches list of raw video file paths.
-  ///
-  /// Throws [PermissionDeniedException] if storage/video permission is not granted.
-  /// Throws [FileSystemException] or other platform exceptions for I/O errors.
-  Future<List<String>> getVideoPaths();
+  Future<List<VideoFile>> getVideos();
+  Future<void> requestPermissions();
 }
 
 // Custom exception for permission issues
@@ -19,92 +21,228 @@ class PermissionDeniedException implements Exception {
 }
 
 class VideoLocalDataSourceImpl implements VideoLocalDataSource {
-  // Re-using the core logic from the previous VideoListPage.
-  // This logic has known limitations regarding full access to public directories on Android due to scoped storage.
-  // A production app would need a more robust solution (e.g., MediaStore API via platform channels).
+  final Directory? _directory;
+  final _supportedExtensions = [
+    '.mp4',
+    '.mov',
+    '.avi',
+    '.mkv',
+    '.wmv',
+    '.flv',
+    '.webm',
+    '.m4v',
+    '.3gp'
+  ];
+
+  VideoLocalDataSourceImpl({Directory? directory}) : _directory = directory;
 
   @override
-  Future<List<String>> getVideoPaths() async {
-    PermissionStatus videoPermissionStatus;
-
-    if (Platform.isAndroid) {
-      // Requesting both, system usually handles which one is appropriate or if both are needed.
-      // More granular SDK checks could be added if specific behavior is required.
-      // For Android 13+, Permission.videos is preferred.
-      // For older, Permission.storage. Permission_handler might handle some of this.
-      var videosStatus = await Permission.videos.request();
-      if (videosStatus.isGranted) {
-        videoPermissionStatus = videosStatus;
+  Future<List<VideoFile>> getVideos() async {
+    try {
+      if (Platform.isAndroid || Platform.isIOS) {
+        return await _getPlatformVideos();
       } else {
-        // Fallback or if videos permission is not enough/applicable
-        videoPermissionStatus = await Permission.storage.request();
+        return await _getLocalVideos();
       }
-    } else if (Platform.isIOS) {
-      videoPermissionStatus = await Permission.photos.request(); // For videos in photo library
-    } else {
-      videoPermissionStatus = await Permission.storage.request(); // Generic fallback
+    } catch (e) {
+      throw CacheException();
     }
+  }
 
-    if (!videoPermissionStatus.isGranted) {
-      throw PermissionDeniedException('Storage/video permission was not granted. Status: $videoPermissionStatus');
-    }
+  Future<List<VideoFile>> _getPlatformVideos() async {
+    final List<VideoFile> videos = [];
 
-    final List<Directory> mediaDirsToScan = [];
-    if (Platform.isAndroid) {
-      List<Directory>? externalStorageDirs = await getExternalStorageDirectories();
-      if (externalStorageDirs != null) {
-        mediaDirsToScan.addAll(externalStorageDirs);
+    try {
+      print('Requesting photo manager permission...');
+      final PermissionState ps = await PhotoManager.requestPermissionExtend();
+      print('Permission state: ${ps.hasAccess}');
+
+      if (!ps.hasAccess) {
+        throw PermissionDeniedException(
+            'Photo library permission not granted. Please grant permission in settings.');
       }
-      // Attempting to add common public directories.
-      // Note: Direct access to these paths is unreliable on modern Android due to scoped storage.
-      // This part is more illustrative and would need platform-specific APIs (MediaStore/SAF) for robust access.
-      // final List<Directory> commonPublicDirs = [
-      //   Directory('/storage/emulated/0/Movies'),
-      //   Directory('/storage/emulated/0/DCIM'),
-      //   Directory('/storage/emulated/0/Download'),
-      // ];
-      // for (var dir in commonPublicDirs) {
-      //   if (await dir.exists()) { // This check itself might be problematic for restricted dirs
-      //     mediaDirsToScan.add(dir);
-      //   }
-      // }
-    } else if (Platform.isIOS) {
-      // On iOS, videos are typically accessed via the photo library (using Permission.photos).
-      // Specific plugins like photo_manager or image_picker would then be used to browse this library.
-      // path_provider gives app-specific directories, not the general media library.
-      // For this data source, we'll assume that if permission is granted,
-      // a subsequent step (perhaps in a use case or a more specialized data source)
-      // would use a dedicated plugin to pick files from the photo library.
-      // So, for iOS, this raw path fetching might return an empty list unless files are in app's own dirs.
-      Directory appDocsDir = await getApplicationDocumentsDirectory();
-      mediaDirsToScan.add(appDocsDir); // Example: scan app's own documents directory
-    }
 
-    if (mediaDirsToScan.isEmpty) {
-      // Could indicate no external storage or specific issue on platform.
-      return [];
-    }
+      print('Getting asset path list...');
+      final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
+        onlyAll: true,
+        type: RequestType.video,
+      );
 
-    List<String> videoFilePaths = [];
-    for (var dir in mediaDirsToScan) {
-      if (await dir.exists()) {
-        try {
-          final List<FileSystemEntity> entities = dir.listSync(recursive: true, followLinks: false);
-          for (var entity in entities) {
-            if (entity is File) {
-              String path = entity.path.toLowerCase();
-              if (path.endsWith('.mp4') || path.endsWith('.mov') || path.endsWith('.avi') || path.endsWith('.mkv')) {
-                videoFilePaths.add(entity.path);
-              }
+      print('Found ${paths.length} asset paths');
+      if (paths.isEmpty) {
+        print('No video albums found');
+        return videos; // No video albums found
+      }
+
+      final AssetPathEntity recentPath = paths.first;
+      print('Using path: ${recentPath.name}');
+
+      final List<AssetEntity> entities = await recentPath.getAssetListPaged(
+        page: 0,
+        size: 100, // Increased to get more videos
+      );
+
+      print('Found ${entities.length} video entities');
+
+      for (int i = 0; i < entities.length; i++) {
+        final entity = entities[i];
+        print('Processing entity $i: ${entity.title} (type: ${entity.type})');
+
+        if (entity.type == AssetType.video) {
+          print('Getting file for video: ${entity.title}');
+          final file = await entity.file;
+          if (file != null) {
+            print('File path: ${file.path}');
+
+            // Only generate thumbnail for the first 10 videos to improve loading speed
+            String? thumbnailPath;
+            Duration? duration;
+            if (videos.length < 10) {
+              print('Generating thumbnail and duration for: ${entity.title}');
+              // Generate thumbnail and duration in parallel for better performance
+              final results = await Future.wait([
+                _generateThumbnail(file.path),
+                _extractVideoDuration(file.path),
+              ]);
+              thumbnailPath = results[0] as String?;
+              duration = results[1] as Duration?;
             }
+
+            final videoFile = VideoFile(
+              path: file.path,
+              name: entity.title ?? path.basename(file.path),
+              thumbnailPath: thumbnailPath,
+              duration: duration,
+              fileSize: await file.length(),
+              dateAdded: entity.createDateTime,
+            );
+
+            videos.add(videoFile);
+            print('Added video: ${videoFile.name}');
+          } else {
+            print('Failed to get file for entity: ${entity.title}');
           }
-        } catch (e) {
-          // Log error or handle specific directory access errors
-          print('Error listing files in directory ${dir.path}: $e');
-          // Depending on policy, might re-throw or just skip this directory
         }
       }
+
+      print('Successfully loaded ${videos.length} videos');
+    } catch (e) {
+      print('Error getting platform videos: $e');
+      if (e is PermissionDeniedException) {
+        rethrow; // Re-throw permission exceptions
+      }
+      throw CacheException('Failed to load videos: $e');
     }
-    return videoFilePaths;
+    return videos;
+  }
+
+  Future<List<VideoFile>> _getLocalVideos() async {
+    final List<VideoFile> videos = [];
+    final directory = _directory ?? await getApplicationDocumentsDirectory();
+
+    try {
+      final List<FileSystemEntity> files = directory.listSync(recursive: true);
+      for (var file in files) {
+        if (file is File && _isVideoFile(file.path)) {
+          final thumbnailPath = await _generateThumbnail(file.path);
+          final duration = await _extractVideoDuration(file.path);
+          final videoFile = VideoFile(
+            path: file.path,
+            name: path.basename(file.path),
+            thumbnailPath: thumbnailPath,
+            duration: duration,
+            fileSize: await file.length(),
+            dateAdded: await file.lastModified(),
+          );
+          videos.add(videoFile);
+        }
+      }
+    } catch (e) {
+      print('Error getting videos: $e');
+    }
+    return videos;
+  }
+
+  bool _isVideoFile(String filePath) {
+    final extension = filePath.toLowerCase().split('.').last;
+    return _supportedExtensions.contains('.' + extension);
+  }
+
+  Future<String?> _generateThumbnail(String videoPath) async {
+    try {
+      final thumbnailDir = await getTemporaryDirectory();
+      final thumbnailPath =
+          '${thumbnailDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      final thumbnail = await VideoThumbnail.thumbnailFile(
+        video: videoPath,
+        thumbnailPath: thumbnailPath,
+        imageFormat: ImageFormat.JPEG,
+        maxHeight: 120, // Reduced from 150 for faster generation
+        quality: 30, // Reduced from 50 for faster generation
+        timeMs: 1000, // Generate thumbnail at 1 second mark for consistency
+      );
+
+      return thumbnail;
+    } catch (e) {
+      print('Error generating thumbnail: $e');
+      return null;
+    }
+  }
+
+  Future<Duration?> _extractVideoDuration(String videoPath) async {
+    try {
+      final controller = VideoPlayerController.file(File(videoPath));
+
+      // Add timeout to prevent hanging on problematic videos
+      final duration = await controller.initialize().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () {
+          controller.dispose();
+          return Duration.zero;
+        },
+      );
+
+      final videoDuration = controller.value.duration;
+      await controller.dispose();
+      return videoDuration;
+    } catch (e) {
+      print('Error extracting video duration: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<void> requestPermissions() async {
+    if (Platform.isAndroid || Platform.isIOS) {
+      print('Requesting photo manager permissions...');
+      try {
+        final PermissionState ps = await PhotoManager.requestPermissionExtend();
+        print('Permission result: ${ps.hasAccess}');
+        if (!ps.hasAccess) {
+          throw PermissionDeniedException(
+              'Photo library permission not granted.');
+        }
+        print('Permission granted successfully');
+      } catch (e) {
+        print('Error requesting permissions: $e');
+        rethrow;
+      }
+    }
+  }
+
+  // Debug method to check permission status
+  Future<bool> checkPermissionStatus() async {
+    if (Platform.isAndroid || Platform.isIOS) {
+      try {
+        final PermissionState ps = await PhotoManager.requestPermissionExtend();
+        print('Current permission status: ${ps.hasAccess}');
+        return ps.hasAccess;
+      } catch (e) {
+        print('Error checking permission status: $e');
+        return false;
+      }
+    }
+    return true; // For non-mobile platforms
   }
 }

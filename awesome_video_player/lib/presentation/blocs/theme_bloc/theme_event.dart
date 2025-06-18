@@ -18,3 +18,39 @@ class ChangeTheme extends ThemeEvent {
   @override
   List<Object?> get props => [themeMode];
 }
+
+class ToggleGridView extends ThemeEvent {
+  final bool isGridView;
+
+  const ToggleGridView(this.isGridView);
+
+  @override
+  List<Object?> get props => [isGridView];
+}
+
+class ToggleSubtitles extends ThemeEvent {
+  final bool subtitlesEnabled;
+
+  const ToggleSubtitles(this.subtitlesEnabled);
+
+  @override
+  List<Object?> get props => [subtitlesEnabled];
+}
+
+class SetVideoDecoder extends ThemeEvent {
+  final String videoDecoder;
+
+  const SetVideoDecoder(this.videoDecoder);
+
+  @override
+  List<Object?> get props => [videoDecoder];
+}
+
+class ToggleHardwareAcceleration extends ThemeEvent {
+  final bool hardwareAcceleration;
+
+  const ToggleHardwareAcceleration(this.hardwareAcceleration);
+
+  @override
+  List<Object?> get props => [hardwareAcceleration];
+}
