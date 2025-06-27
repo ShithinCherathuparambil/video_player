@@ -117,6 +117,11 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
     // Wait for initialization
     await _videoPlayerController.initialize();
 
+    // Set aspect ratio to the video's original aspect ratio
+    setState(() {
+      _aspectRatio = _videoPlayerController.value.aspectRatio;
+    });
+
     // Load last position if resuming
     if (widget.resumeFromLastPosition) {
       _loadLastPosition();
