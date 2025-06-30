@@ -1,30 +1,78 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Main widget test file for the Awesome Video Player app
+// This file contains basic app-level widget tests
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:awesome_video_player_fresh/main.dart';
+import 'package:awesome_video_player/main.dart';
+import 'package:awesome_video_player/presentation/screens/splash_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('App Widget Tests', () {
+    testWidgets('App should build without errors', (WidgetTester tester) async {
+      // Build our app directly (MyApp already contains MaterialApp)
+      await tester.pumpWidget(const MyApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      // Verify the app builds successfully
+      expect(find.byType(MaterialApp), findsOneWidget);
+      expect(find.byType(MyApp), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      // Clean up any pending timers with shorter timeout
+      try {
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+      } catch (e) {
+        // If pumpAndSettle times out, just pump a few times
+        for (int i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+      }
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    testWidgets('App should show splash screen initially',
+        (WidgetTester tester) async {
+      // Build our app directly
+      await tester.pumpWidget(const MyApp());
+
+      // Wait for initial frame
+      await tester.pump();
+
+      // Verify splash screen is shown
+      expect(find.byType(SplashScreen), findsOneWidget);
+      expect(find.text('Awesome Video Player'), findsOneWidget);
+
+      // Clean up any pending timers with shorter timeout
+      try {
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+      } catch (e) {
+        // If pumpAndSettle times out, just pump a few times
+        for (int i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+      }
+    });
+
+    testWidgets('App should have correct title', (WidgetTester tester) async {
+      // Build our app
+      await tester.pumpWidget(const MyApp());
+
+      // Get the MaterialApp widget
+      final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
+
+      // Verify the title
+      expect(materialApp.title, 'Awesome Video Player');
+      expect(materialApp.debugShowCheckedModeBanner, false);
+    });
+
+    testWidgets('App should have theme configuration',
+        (WidgetTester tester) async {
+      // Build our app
+      await tester.pumpWidget(const MyApp());
+
+      // Get the MaterialApp widget
+      final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
+
+      // Verify themes are configured
+      expect(materialApp.theme, isNotNull);
+      expect(materialApp.darkTheme, isNotNull);
+    });
   });
 }

@@ -1,9 +1,9 @@
-import 'dart:io'; // For File
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import 'package:awesome_video_player/domain/entities/video_file.dart';
 import 'package:awesome_video_player/domain/repositories/video_repository.dart';
 import 'package:awesome_video_player/data/datasources/video_local_data_source.dart';
+import 'package:awesome_video_player/core/security/secure_storage.dart';
 
 class VideoRepositoryImpl implements VideoRepository {
   final VideoLocalDataSource localDataSource;
@@ -18,37 +18,27 @@ class VideoRepositoryImpl implements VideoRepository {
   @override
   Future<List<VideoFile>> getVideos() async {
     try {
-      print('VideoRepository: Starting to get videos...');
-
       // Return cached videos if available
       if (_cachedVideos != null) {
-        print(
-            'VideoRepository: Returning ${_cachedVideos!.length} cached videos');
         return _cachedVideos!;
       }
 
-      print('VideoRepository: Requesting permissions...');
       await localDataSource.requestPermissions();
-      print(
-          'VideoRepository: Permissions granted, getting videos from data source...');
-
       final videos = await localDataSource.getVideos();
-      print('VideoRepository: Got ${videos.length} videos from data source');
 
       // Load metadata for each video
-      print('VideoRepository: Loading metadata for videos...');
       final videosWithMetadata = await _loadVideoMetadata(videos);
-      print(
-          'VideoRepository: Loaded metadata for ${videosWithMetadata.length} videos');
 
       // Cache the result for future use
       _cachedVideos = videosWithMetadata;
-      print('VideoRepository: Cached ${_cachedVideos!.length} videos');
 
       return videosWithMetadata;
     } catch (e) {
-      print('VideoRepository: Error loading videos: $e');
-      print('VideoRepository: Error type: ${e.runtimeType}');
+      // Log error in debug mode only
+      assert(() {
+        debugPrint('VideoRepository: Error loading videos: $e');
+        return true;
+      }());
       // Return empty list instead of throwing to prevent app crashes
       return [];
     }
@@ -57,12 +47,13 @@ class VideoRepositoryImpl implements VideoRepository {
   @override
   Future<void> saveVideoMetadata(VideoFile video) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final metadataMap = prefs.getString(_videoMetadataKey);
+      // Use secure storage for sensitive metadata
+      final metadataString =
+          await SecureStorage.getSecureString(_videoMetadataKey);
       Map<String, dynamic> allMetadata = {};
 
-      if (metadataMap != null) {
-        allMetadata = json.decode(metadataMap) as Map<String, dynamic>;
+      if (metadataString != null) {
+        allMetadata = json.decode(metadataString) as Map<String, dynamic>;
       }
 
       // If this video is being marked as "watching", clear "watching" status from other videos
@@ -92,13 +83,18 @@ class VideoRepositoryImpl implements VideoRepository {
       // Save metadata for this video using path as key
       allMetadata[video.path] = video.toJson();
 
-      await prefs.setString(_videoMetadataKey, json.encode(allMetadata));
+      await SecureStorage.setSecureString(
+          _videoMetadataKey, json.encode(allMetadata));
 
       // Update cache and clear video cache to ensure consistency
       _metadataCache = allMetadata;
       _cachedVideos = null;
     } catch (e) {
-      print('Error saving video metadata: $e');
+      // Log error in debug mode only
+      assert(() {
+        debugPrint('Error saving video metadata: $e');
+        return true;
+      }());
       // Don't rethrow to prevent app crashes
     }
   }
@@ -106,12 +102,12 @@ class VideoRepositoryImpl implements VideoRepository {
   @override
   Future<void> toggleFavorite(String videoPath) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final metadataMap = prefs.getString(_videoMetadataKey);
+      final metadataString =
+          await SecureStorage.getSecureString(_videoMetadataKey);
       Map<String, dynamic> allMetadata = {};
 
-      if (metadataMap != null) {
-        allMetadata = json.decode(metadataMap) as Map<String, dynamic>;
+      if (metadataString != null) {
+        allMetadata = json.decode(metadataString) as Map<String, dynamic>;
       }
 
       // Get current video metadata
@@ -121,8 +117,6 @@ class VideoRepositoryImpl implements VideoRepository {
         final currentFavorite = videoData['isFavorite'] as bool? ?? false;
         videoData['isFavorite'] = !currentFavorite;
         allMetadata[videoPath] = videoData;
-
-        print('Toggled favorite for video: $videoPath to ${!currentFavorite}');
       } else {
         // Create new metadata entry if it doesn't exist
         allMetadata[videoPath] = {
@@ -131,16 +125,20 @@ class VideoRepositoryImpl implements VideoRepository {
           'isFavorite': true,
           'status': VideoStatus.new_.index,
         };
-        print('Created new favorite entry for video: $videoPath');
       }
 
-      await prefs.setString(_videoMetadataKey, json.encode(allMetadata));
+      await SecureStorage.setSecureString(
+          _videoMetadataKey, json.encode(allMetadata));
 
       // Update cache and clear video cache to ensure consistency
       _metadataCache = allMetadata;
       _cachedVideos = null;
     } catch (e) {
-      print('Error toggling favorite: $e');
+      // Log error in debug mode only
+      assert(() {
+        debugPrint('Error toggling favorite: $e');
+        return true;
+      }());
       rethrow;
     }
   }
@@ -151,7 +149,11 @@ class VideoRepositoryImpl implements VideoRepository {
       final allVideos = await getVideos();
       return allVideos.where((video) => video.isFavorite).toList();
     } catch (e) {
-      print('Error getting favorite videos: $e');
+      // Log error in debug mode only
+      assert(() {
+        debugPrint('Error getting favorite videos: $e');
+        return true;
+      }());
       return [];
     }
   }
@@ -164,15 +166,15 @@ class VideoRepositoryImpl implements VideoRepository {
       if (_metadataCache != null) {
         allMetadata = _metadataCache!;
       } else {
-        final prefs = await SharedPreferences.getInstance();
-        final metadataMap = prefs.getString(_videoMetadataKey);
+        final metadataString =
+            await SecureStorage.getSecureString(_videoMetadataKey);
 
-        if (metadataMap == null) {
+        if (metadataString == null) {
           _metadataCache = {};
           return videos;
         }
 
-        allMetadata = json.decode(metadataMap) as Map<String, dynamic>;
+        allMetadata = json.decode(metadataString) as Map<String, dynamic>;
         _metadataCache = allMetadata;
       }
 

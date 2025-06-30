@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:video_player/video_player.dart';
 import 'package:awesome_video_player/domain/entities/video_file.dart';
 import 'package:awesome_video_player/core/error/exceptions.dart';
+import 'package:awesome_video_player/core/security/path_validator.dart';
 import 'package:path/path.dart' as path;
 import 'package:photo_manager/photo_manager.dart';
 
@@ -22,17 +24,6 @@ class PermissionDeniedException implements Exception {
 
 class VideoLocalDataSourceImpl implements VideoLocalDataSource {
   final Directory? _directory;
-  final _supportedExtensions = [
-    '.mp4',
-    '.mov',
-    '.avi',
-    '.mkv',
-    '.wmv',
-    '.flv',
-    '.webm',
-    '.m4v',
-    '.3gp'
-  ];
 
   VideoLocalDataSourceImpl({Directory? directory}) : _directory = directory;
 
@@ -53,52 +44,39 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
     final List<VideoFile> videos = [];
 
     try {
-      print('Requesting photo manager permission...');
       final PermissionState ps = await PhotoManager.requestPermissionExtend();
-      print('Permission state: ${ps.hasAccess}');
 
       if (!ps.hasAccess) {
         throw PermissionDeniedException(
             'Photo library permission not granted. Please grant permission in settings.');
       }
 
-      print('Getting asset path list...');
       final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
         onlyAll: true,
         type: RequestType.video,
       );
 
-      print('Found ${paths.length} asset paths');
       if (paths.isEmpty) {
-        print('No video albums found');
         return videos; // No video albums found
       }
 
       final AssetPathEntity recentPath = paths.first;
-      print('Using path: ${recentPath.name}');
 
       final List<AssetEntity> entities = await recentPath.getAssetListPaged(
         page: 0,
         size: 100, // Increased to get more videos
       );
 
-      print('Found ${entities.length} video entities');
-
       for (int i = 0; i < entities.length; i++) {
         final entity = entities[i];
-        print('Processing entity $i: ${entity.title} (type: ${entity.type})');
 
         if (entity.type == AssetType.video) {
-          print('Getting file for video: ${entity.title}');
           final file = await entity.file;
-          if (file != null) {
-            print('File path: ${file.path}');
-
+          if (file != null && PathValidator.isValidVideoPath(file.path)) {
             // Only generate thumbnail for the first 10 videos to improve loading speed
             String? thumbnailPath;
             Duration? duration;
             if (videos.length < 10) {
-              print('Generating thumbnail and duration for: ${entity.title}');
               // Generate thumbnail and duration in parallel for better performance
               final results = await Future.wait([
                 _generateThumbnail(file.path),
@@ -108,9 +86,15 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
               duration = results[1] as Duration?;
             }
 
+            // Validate thumbnail path for security
+            if (thumbnailPath != null &&
+                !PathValidator.isValidThumbnailPath(thumbnailPath)) {
+              thumbnailPath = null;
+            }
+
             final videoFile = VideoFile(
               path: file.path,
-              name: entity.title ?? path.basename(file.path),
+              name: PathValidator.getSecureFileName(file.path),
               thumbnailPath: thumbnailPath,
               duration: duration,
               fileSize: await file.length(),
@@ -118,16 +102,10 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
             );
 
             videos.add(videoFile);
-            print('Added video: ${videoFile.name}');
-          } else {
-            print('Failed to get file for entity: ${entity.title}');
           }
         }
       }
-
-      print('Successfully loaded ${videos.length} videos');
     } catch (e) {
-      print('Error getting platform videos: $e');
       if (e is PermissionDeniedException) {
         rethrow; // Re-throw permission exceptions
       }
@@ -158,14 +136,18 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
         }
       }
     } catch (e) {
-      print('Error getting videos: $e');
+      // Log error in debug mode only
+      assert(() {
+        debugPrint('Error getting videos: $e');
+        return true;
+      }());
     }
     return videos;
   }
 
   bool _isVideoFile(String filePath) {
-    final extension = filePath.toLowerCase().split('.').last;
-    return _supportedExtensions.contains('.' + extension);
+    // Use secure path validation
+    return PathValidator.isValidVideoPath(filePath);
   }
 
   Future<String?> _generateThumbnail(String videoPath) async {
@@ -185,7 +167,6 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
 
       return thumbnail;
     } catch (e) {
-      print('Error generating thumbnail: $e');
       return null;
     }
   }
@@ -195,11 +176,10 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
       final controller = VideoPlayerController.file(File(videoPath));
 
       // Add timeout to prevent hanging on problematic videos
-      final duration = await controller.initialize().timeout(
+      await controller.initialize().timeout(
         const Duration(seconds: 3),
         onTimeout: () {
           controller.dispose();
-          return Duration.zero;
         },
       );
 
@@ -207,7 +187,6 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
       await controller.dispose();
       return videoDuration;
     } catch (e) {
-      print('Error extracting video duration: $e');
       return null;
     }
   }
@@ -215,17 +194,13 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
   @override
   Future<void> requestPermissions() async {
     if (Platform.isAndroid || Platform.isIOS) {
-      print('Requesting photo manager permissions...');
       try {
         final PermissionState ps = await PhotoManager.requestPermissionExtend();
-        print('Permission result: ${ps.hasAccess}');
         if (!ps.hasAccess) {
           throw PermissionDeniedException(
               'Photo library permission not granted.');
         }
-        print('Permission granted successfully');
       } catch (e) {
-        print('Error requesting permissions: $e');
         rethrow;
       }
     }
@@ -236,10 +211,8 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
     if (Platform.isAndroid || Platform.isIOS) {
       try {
         final PermissionState ps = await PhotoManager.requestPermissionExtend();
-        print('Current permission status: ${ps.hasAccess}');
         return ps.hasAccess;
       } catch (e) {
-        print('Error checking permission status: $e');
         return false;
       }
     }

@@ -26,23 +26,26 @@ void main() {
     VideoFile(path: '/video2.mp4', name: 'video2.mp4'),
   ];
   const tPermissionDeniedMessage = "Video permission denied by user.";
-  final tPermissionException = PermissionDeniedException(tPermissionDeniedMessage);
-  final tGenericException = Exception("Failed to fetch videos due to a generic error.");
+  final tPermissionException =
+      PermissionDeniedException(tPermissionDeniedMessage);
+  final tGenericException =
+      Exception("Failed to fetch videos due to a generic error.");
 
   test('initial state should be VideoListInitial', () {
     // VideoListBloc is created fresh for each blocTest, so this tests the constructor state.
-    expect(VideoListBloc(getVideosUseCase: mockGetVideos).state, VideoListInitial());
+    expect(VideoListBloc(getVideos: mockGetVideos).state,
+        const VideoListInitial());
   });
 
   blocTest<VideoListBloc, VideoListState>(
     'emits [VideoListLoading, VideoListLoaded] when LoadVideos is added and GetVideos succeeds',
     build: () {
       when(mockGetVideos.call()).thenAnswer((_) async => tVideoFiles);
-      return VideoListBloc(getVideosUseCase: mockGetVideos);
+      return VideoListBloc(getVideos: mockGetVideos);
     },
-    act: (bloc) => bloc.add(LoadVideos()),
+    act: (bloc) => bloc.add(const LoadVideos()),
     expect: () => [
-      VideoListLoading(),
+      const VideoListLoading(),
       VideoListLoaded(tVideoFiles),
     ],
     verify: (_) {
@@ -54,12 +57,12 @@ void main() {
     'emits [VideoListLoading, VideoListLoaded (empty)] when LoadVideos is added and GetVideos returns empty list',
     build: () {
       when(mockGetVideos.call()).thenAnswer((_) async => []);
-      return VideoListBloc(getVideosUseCase: mockGetVideos);
+      return VideoListBloc(getVideos: mockGetVideos);
     },
-    act: (bloc) => bloc.add(LoadVideos()),
+    act: (bloc) => bloc.add(const LoadVideos()),
     expect: () => [
-      VideoListLoading(),
-      const VideoListLoaded([]),
+      const VideoListLoading(),
+      VideoListLoaded(const []),
     ],
   );
 
@@ -70,11 +73,11 @@ void main() {
       // or VideoRepositoryImpl throwing it and GetVideos propagating it.
       // The VideoListBloc specifically catches PermissionDeniedException.
       when(mockGetVideos.call()).thenThrow(tPermissionException);
-      return VideoListBloc(getVideosUseCase: mockGetVideos);
+      return VideoListBloc(getVideos: mockGetVideos);
     },
-    act: (bloc) => bloc.add(LoadVideos()),
+    act: (bloc) => bloc.add(const LoadVideos()),
     expect: () => [
-      VideoListLoading(),
+      const VideoListLoading(),
       VideoListPermissionDenied(tPermissionException.message),
     ],
   );
@@ -83,11 +86,11 @@ void main() {
     'emits [VideoListLoading, VideoListError] when GetVideos throws a generic Exception',
     build: () {
       when(mockGetVideos.call()).thenThrow(tGenericException);
-      return VideoListBloc(getVideosUseCase: mockGetVideos);
+      return VideoListBloc(getVideos: mockGetVideos);
     },
-    act: (bloc) => bloc.add(LoadVideos()),
+    act: (bloc) => bloc.add(const LoadVideos()),
     expect: () => [
-      VideoListLoading(),
+      const VideoListLoading(),
       VideoListError("Failed to load videos: ${tGenericException.toString()}"),
     ],
   );

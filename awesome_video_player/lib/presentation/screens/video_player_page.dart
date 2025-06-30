@@ -175,24 +175,17 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
       );
 
       // Update the video list instantly
-      print('=== Dispatching UpdateVideoStatus ===');
-      print('Video path: ${_currentVideo.path}');
-      print('New status: $newStatus');
-      print('Current position: $currentPosition');
-
       context.read<VideoListBloc>().add(UpdateVideoStatus(
             videoPath: _currentVideo.path,
             newStatus: newStatus,
             lastPosition: currentPosition,
           ));
 
-      print('UpdateVideoStatus event dispatched');
-
       // Save to video metadata in background
       await _saveVideoMetadata(updatedVideo);
       _currentVideo = updatedVideo;
     } catch (e) {
-      print('Error saving video metadata: $e');
+      // Handle error silently in production
     }
   }
 

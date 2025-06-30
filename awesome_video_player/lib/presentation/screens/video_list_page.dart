@@ -307,14 +307,6 @@ class _VideoListPageState extends State<VideoListPage>
 
   Widget _buildVideoContent(
       BuildContext context, VideoListState videoState, bool isGridView) {
-    print('=== _buildVideoContent called ===');
-    print('State type: ${videoState.runtimeType}');
-    if (videoState is VideoListLoaded) {
-      print('Videos count: ${videoState.videos.length}');
-      print(
-          'First video status: ${videoState.videos.isNotEmpty ? videoState.videos.first.status : 'N/A'}');
-    }
-
     if (videoState is VideoListLoading) {
       return const Center(
         child: Column(
@@ -521,7 +513,7 @@ class _VideoListPageState extends State<VideoListPage>
           color: Theme.of(context).colorScheme.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -541,7 +533,7 @@ class _VideoListPageState extends State<VideoListPage>
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),

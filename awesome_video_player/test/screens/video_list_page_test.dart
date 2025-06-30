@@ -1,3 +1,4 @@
+import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,16 +8,20 @@ import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_li
 import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_event.dart';
 import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_state.dart';
 import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart' as theme_state; // aliased
+import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart'
+    as theme_state; // aliased
 import 'package:awesome_video_player/presentation/screens/video_list_page.dart';
 import 'package:awesome_video_player/presentation/theme/app_themes.dart';
+import 'package:mockito/mockito.dart';
 // Mock for path_provider and permission_handler are no longer needed here,
 // as we will mock the BLoC layer.
 
 // Mock BLoCs
-class MockVideoListBloc extends MockBloc<VideoListEvent, VideoListState> implements VideoListBloc {}
-class MockThemeBloc extends MockBloc<ThemeEvent, theme_state.ThemeState> implements ThemeBloc {}
+class MockVideoListBloc extends MockBloc<VideoListEvent, VideoListState>
+    implements VideoListBloc {}
 
+class MockThemeBloc extends MockBloc<ThemeEvent, theme_state.ThemeState>
+    implements ThemeBloc {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -31,8 +36,9 @@ void main() {
     // Default state for ThemeBloc for SettingsPage navigation to work
     whenListen(
       mockThemeBloc,
-      Stream.fromIterable([const theme_state.ThemeLoaded(ThemeMode.light)]),
-      initialState: const theme_state.ThemeLoaded(ThemeMode.light),
+      Stream.fromIterable(
+          [const theme_state.ThemeLoaded(themeMode: ThemeMode.light)]),
+      initialState: const theme_state.ThemeLoaded(themeMode: ThemeMode.light),
     );
   });
 
@@ -48,7 +54,7 @@ void main() {
         home: child,
         // Need to provide routes if SettingsPage or VideoPlayerPage are pushed by name
         // For direct MaterialPageRoute, this is less critical but good practice.
-        routes: {
+        routes: const {
           // Define routes if SettingsPage or VideoPlayerPage are pushed by name during tests
           // For now, VideoListPage itself is the 'child'
         },
@@ -59,7 +65,8 @@ void main() {
   final tVideos = [VideoFile(name: 'video1.mp4', path: '/video1.mp4')];
 
   group('VideoListPage Widget Tests with MockVideoListBloc', () {
-    testWidgets('Displays AppBar and initial state (usually loading)', (WidgetTester tester) async {
+    testWidgets('Displays AppBar and initial state (usually loading)',
+        (WidgetTester tester) async {
       whenListen(
         mockVideoListBloc,
         Stream.fromIterable([VideoListInitial(), VideoListLoading()]),
@@ -78,7 +85,8 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('Displays loading indicator for VideoListLoading state', (WidgetTester tester) async {
+    testWidgets('Displays loading indicator for VideoListLoading state',
+        (WidgetTester tester) async {
       whenListen(
         mockVideoListBloc,
         Stream.fromIterable([VideoListLoading()]),
@@ -88,7 +96,8 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('Displays list of videos for VideoListLoaded state', (WidgetTester tester) async {
+    testWidgets('Displays list of videos for VideoListLoaded state',
+        (WidgetTester tester) async {
       whenListen(
         mockVideoListBloc,
         Stream.fromIterable([VideoListLoaded(tVideos)]),
@@ -102,11 +111,13 @@ void main() {
       expect(find.byType(ListTile), findsNWidgets(tVideos.length));
     });
 
-    testWidgets('Displays "No videos found" for VideoListLoaded with empty list and allows retry', (WidgetTester tester) async {
+    testWidgets(
+        'Displays "No videos found" for VideoListLoaded with empty list and allows retry',
+        (WidgetTester tester) async {
       whenListen(
         mockVideoListBloc,
-        Stream.fromIterable([const VideoListLoaded([])]),
-        initialState: const VideoListLoaded([]),
+        Stream.fromIterable([VideoListLoaded(const [])]),
+        initialState: VideoListLoaded(const []),
       );
       await tester.pumpWidget(createTestableWidget(const VideoListPage()));
       await tester.pumpAndSettle();
@@ -116,10 +127,12 @@ void main() {
 
       // Test retry button
       await tester.tap(find.widgetWithText(ElevatedButton, 'Try Again'));
-      verify(() => mockVideoListBloc.add(LoadVideos())).called(1);
+      verify(() => mockVideoListBloc.add(const LoadVideos())).called(1);
     });
 
-    testWidgets('Displays error message for VideoListError state and allows retry', (WidgetTester tester) async {
+    testWidgets(
+        'Displays error message for VideoListError state and allows retry',
+        (WidgetTester tester) async {
       const errorMessage = 'Failed to load videos';
       whenListen(
         mockVideoListBloc,
@@ -136,20 +149,25 @@ void main() {
       verify(() => mockVideoListBloc.add(LoadVideos())).called(1);
     });
 
-    testWidgets('Displays permission denied message for VideoListPermissionDenied state and allows retry', (WidgetTester tester) async {
+    testWidgets(
+        'Displays permission denied message for VideoListPermissionDenied state and allows retry',
+        (WidgetTester tester) async {
       const permissionMessage = 'Video permission denied';
       whenListen(
         mockVideoListBloc,
-        Stream.fromIterable([const VideoListPermissionDenied(permissionMessage)]),
+        Stream.fromIterable(
+            [const VideoListPermissionDenied(permissionMessage)]),
         initialState: const VideoListPermissionDenied(permissionMessage),
       );
       await tester.pumpWidget(createTestableWidget(const VideoListPage()));
       await tester.pumpAndSettle();
 
       expect(find.text(permissionMessage), findsOneWidget);
-      expect(find.widgetWithText(ElevatedButton, 'Retry Permissions / Load'), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, 'Retry Permissions / Load'),
+          findsOneWidget);
 
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Retry Permissions / Load'));
+      await tester
+          .tap(find.widgetWithText(ElevatedButton, 'Retry Permissions / Load'));
       verify(() => mockVideoListBloc.add(LoadVideos())).called(1);
     });
   });

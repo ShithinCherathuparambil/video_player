@@ -3,6 +3,7 @@ import 'package:awesome_video_player/domain/entities/video_file.dart';
 import 'package:awesome_video_player/domain/usecases/get_videos.dart';
 import 'package:awesome_video_player/data/datasources/video_local_data_source.dart'; // For Impl and PermissionDeniedException
 import 'package:awesome_video_player/data/repositories/video_repository_impl.dart';
+import 'package:awesome_video_player/core/security/path_validator.dart';
 import './video_list_event.dart';
 import './video_list_state.dart';
 import 'package:awesome_video_player/domain/repositories/video_repository.dart';
@@ -73,12 +74,15 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
   }
 
   void _onSearchVideos(SearchVideos event, Emitter<VideoListState> emit) {
-    if (event.query.isEmpty) {
+    // Sanitize search query for security
+    final sanitizedQuery = PathValidator.sanitizeSearchQuery(event.query);
+
+    if (sanitizedQuery.isEmpty) {
       emit(VideoListLoaded(_allVideos));
     } else {
       final filteredVideos = _allVideos
           .where((video) =>
-              video.name.toLowerCase().contains(event.query.toLowerCase()))
+              video.name.toLowerCase().contains(sanitizedQuery.toLowerCase()))
           .toList();
       emit(VideoListLoaded(filteredVideos));
     }
@@ -86,12 +90,6 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
 
   void _onUpdateVideoStatus(
       UpdateVideoStatus event, Emitter<VideoListState> emit) {
-    print('=== UpdateVideoStatus Event ===');
-    print('Video path: ${event.videoPath}');
-    print('New status: ${event.newStatus}');
-    print('Last position: ${event.lastPosition}');
-    print('Current videos count: ${_allVideos.length}');
-
     // Find and update the video status instantly - try multiple matching strategies
     int videoIndex = _allVideos.indexWhere((v) => v.path == event.videoPath);
 
@@ -100,41 +98,32 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
       final eventFileName = event.videoPath.split('/').last;
       videoIndex =
           _allVideos.indexWhere((v) => v.path.split('/').last == eventFileName);
-      print('Trying filename match: $eventFileName');
     }
 
     // If still not found, try matching by name
     if (videoIndex == -1) {
       final eventFileName = event.videoPath.split('/').last;
       videoIndex = _allVideos.indexWhere((v) => v.name.contains(eventFileName));
-      print('Trying name match: $eventFileName');
     }
-
-    print('Found video at index: $videoIndex');
 
     if (videoIndex != -1) {
       final oldStatus = _allVideos[videoIndex].status;
-      print('Old status: $oldStatus');
 
       // If setting to "lastWatched", clear "lastWatched" from all other videos
       if (event.newStatus == VideoStatus.lastWatched) {
-        print('Setting lastWatched - clearing from other videos');
         for (int i = 0; i < _allVideos.length; i++) {
           if (i != videoIndex &&
               _allVideos[i].status == VideoStatus.lastWatched) {
             _allVideos[i] = _allVideos[i].copyWith(status: VideoStatus.watched);
-            print('Cleared lastWatched from video ${_allVideos[i].name}');
           }
         }
       }
 
       // If setting to "watching", clear "watching" from all other videos
       if (event.newStatus == VideoStatus.watching) {
-        print('Setting watching - clearing from other videos');
         for (int i = 0; i < _allVideos.length; i++) {
           if (i != videoIndex && _allVideos[i].status == VideoStatus.watching) {
             _allVideos[i] = _allVideos[i].copyWith(status: VideoStatus.watched);
-            print('Cleared watching from video ${_allVideos[i].name}');
           }
         }
       }
@@ -147,7 +136,6 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
 
       // Update the video in the list
       _allVideos[videoIndex] = updatedVideo;
-      print('Updated video status from $oldStatus to ${updatedVideo.status}');
 
       // Create a new list to ensure state change is detected
       final newVideosList = List<VideoFile>.from(_allVideos);
@@ -155,18 +143,11 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
       // Emit the updated state immediately
       final newState = VideoListLoaded(newVideosList);
       emit(newState);
-      print('Emitted updated state with ${newVideosList.length} videos');
-      print('New state type: ${newState.runtimeType}');
 
       // Save to repository in background (don't wait for it)
       _saveVideoStatusInBackground(updatedVideo);
-    } else {
-      print('ERROR: Video not found in list!');
-      print('Available video paths:');
-      for (int i = 0; i < _allVideos.length; i++) {
-        print('  $i: ${_allVideos[i].path}');
-      }
     }
+    // If video not found, silently ignore (could be from different source)
   }
 
   Future<void> _saveVideoStatusInBackground(VideoFile video) async {
@@ -176,7 +157,6 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
         await repo.saveVideoMetadata(video);
       }
     } catch (e) {
-      print('Background save failed: $e');
       // Don't emit error state - user doesn't need to know about background save failures
     }
   }
@@ -209,7 +189,7 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
         }
       }
     } catch (e) {
-      print('Error toggling favorite: $e');
+      // Handle error silently
     }
   }
 

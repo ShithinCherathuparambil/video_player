@@ -1,44 +1,152 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
+import 'package:flutter/material.dart';
 import 'package:awesome_video_player/domain/entities/app_settings.dart';
-import 'package:awesome_video_player/domain/repositories/settings_repository.dart';
 import 'package:awesome_video_player/domain/usecases/get_theme_settings.dart';
-import 'package:flutter/material.dart'; // For ThemeMode
+import '../../helpers/mock_factories.dart';
+import '../../helpers/test_data_builders.dart';
 
-// Generate mocks for SettingsRepository by running build_runner
-// If not using build_runner, create manual mocks or use a simpler mocking approach.
-// For this exercise, we'll assume manual mock or simple mock setup.
-// To use @GenerateMocks, you'd add build_runner and mockito_generator to dev_dependencies
-// and run `flutter pub run build_runner build`.
-// Let's create a manual mock for simplicity here.
-
-class MockSettingsRepository extends Mock implements SettingsRepository {}
-
-@GenerateMocks([SettingsRepository]) // If using build_runner
 void main() {
-  late GetThemeSettings usecase;
-  late MockSettingsRepository mockSettingsRepository;
+  group('GetThemeSettings Use Case Tests', () {
+    late GetThemeSettings usecase;
+    late MockSettingsRepository mockSettingsRepository;
+    late AppSettings testAppSettings;
 
-  setUp(() {
-    mockSettingsRepository = MockSettingsRepository();
-    usecase = GetThemeSettings(mockSettingsRepository);
+    setUp(() {
+      mockSettingsRepository = MockFactories.createMockSettingsRepository();
+      usecase = GetThemeSettings(mockSettingsRepository);
+      testAppSettings = AppSettingsBuilder()
+          .withThemeMode(ThemeMode.dark)
+          .withGridView(true)
+          .withSubtitlesEnabled(false)
+          .build();
+    });
+
+    group('Successful Execution Tests', () {
+      test('should get app settings from repository', () async {
+        // arrange
+        when(mockSettingsRepository.getSettings())
+            .thenAnswer((_) async => testAppSettings);
+
+        // act
+        final result = await usecase.call();
+
+        // assert
+        expect(result, testAppSettings);
+        expect(result.themeMode, ThemeMode.dark);
+        expect(result.isGridView, true);
+        expect(result.subtitlesEnabled, false);
+        verify(mockSettingsRepository.getSettings()).called(1);
+        verifyNoMoreInteractions(mockSettingsRepository);
+      });
+
+      test('should get light theme settings', () async {
+        // arrange
+        final lightSettings = AppSettingsBuilder().asLightTheme().build();
+        when(mockSettingsRepository.getSettings())
+            .thenAnswer((_) async => lightSettings);
+
+        // act
+        final result = await usecase.call();
+
+        // assert
+        expect(result.themeMode, ThemeMode.light);
+        verify(mockSettingsRepository.getSettings()).called(1);
+      });
+
+      test('should get system theme settings', () async {
+        // arrange
+        final systemSettings = AppSettingsBuilder().asSystemTheme().build();
+        when(mockSettingsRepository.getSettings())
+            .thenAnswer((_) async => systemSettings);
+
+        // act
+        final result = await usecase.call();
+
+        // assert
+        expect(result.themeMode, ThemeMode.system);
+        verify(mockSettingsRepository.getSettings()).called(1);
+      });
+
+      test('should get settings with all preferences', () async {
+        // arrange
+        final completeSettings = AppSettingsBuilder()
+            .withThemeMode(ThemeMode.dark)
+            .withGridView(false)
+            .withSubtitlesEnabled(true)
+            .withVideoDecoder('hardware')
+            .withHardwareAcceleration(false)
+            .build();
+        when(mockSettingsRepository.getSettings())
+            .thenAnswer((_) async => completeSettings);
+
+        // act
+        final result = await usecase.call();
+
+        // assert
+        expect(result.themeMode, ThemeMode.dark);
+        expect(result.isGridView, false);
+        expect(result.subtitlesEnabled, true);
+        expect(result.videoDecoder, 'hardware');
+        expect(result.hardwareAcceleration, false);
+        verify(mockSettingsRepository.getSettings()).called(1);
+      });
+    });
+
+    group('Error Handling Tests', () {
+      test('should propagate repository exceptions', () async {
+        // arrange
+        final exception = Exception('Settings load failed');
+        when(mockSettingsRepository.getSettings()).thenThrow(exception);
+
+        // act & assert
+        expect(() => usecase.call(), throwsA(exception));
+        verify(mockSettingsRepository.getSettings()).called(1);
+      });
+
+      test('should propagate storage exceptions', () async {
+        // arrange
+        final storageException = Exception('Storage error');
+        when(mockSettingsRepository.getSettings()).thenThrow(storageException);
+
+        // act & assert
+        expect(() => usecase.call(), throwsA(storageException));
+        verify(mockSettingsRepository.getSettings()).called(1);
+      });
+    });
+
+    group('Performance Tests', () {
+      test('should handle multiple concurrent calls', () async {
+        // arrange
+        when(mockSettingsRepository.getSettings())
+            .thenAnswer((_) async => testAppSettings);
+
+        // act
+        final futures = List.generate(5, (_) => usecase.call());
+        final results = await Future.wait(futures);
+
+        // assert
+        for (final result in results) {
+          expect(result, testAppSettings);
+        }
+        verify(mockSettingsRepository.getSettings()).called(5);
+      });
+    });
+
+    group('Integration Tests', () {
+      test('should work correctly with repository implementation', () async {
+        // arrange
+        when(mockSettingsRepository.getSettings())
+            .thenAnswer((_) async => testAppSettings);
+
+        // act
+        final result = await usecase.call();
+
+        // assert
+        expect(result, testAppSettings);
+        verify(mockSettingsRepository.getSettings()).called(1);
+        verifyNoMoreInteractions(mockSettingsRepository);
+      });
+    });
   });
-
-  final tAppSettings = AppSettings(themeMode: ThemeMode.dark);
-
-  test(
-    'should get app settings (including theme) from the repository',
-    () async {
-      // arrange
-      when(mockSettingsRepository.getSettings())
-          .thenAnswer((_) async => tAppSettings);
-      // act
-      final result = await usecase.call();
-      // assert
-      expect(result, tAppSettings);
-      verify(mockSettingsRepository.getSettings());
-      verifyNoMoreInteractions(mockSettingsRepository);
-    },
-  );
 }
