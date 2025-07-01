@@ -1,4 +1,4 @@
-import 'package:awesome_video_player/domain/repositories/video_repository.dart';
+import 'package:lumeo/domain/repositories/video_repository.dart';
 
 class ToggleFavorite {
   final VideoRepository repository;

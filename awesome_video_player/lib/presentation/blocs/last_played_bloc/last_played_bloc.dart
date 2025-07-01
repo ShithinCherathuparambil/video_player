@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
 import './last_played_event.dart';
 import './last_played_state.dart';
 

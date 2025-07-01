@@ -1,4 +1,4 @@
-import 'package:awesome_video_player/domain/entities/video_file.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
 
 abstract class VideoRepository {
   /// Fetches a list of video files.

@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:flutter/material.dart';
-import 'package:awesome_video_player/domain/entities/app_settings.dart';
-import 'package:awesome_video_player/data/repositories/settings_repository_impl.dart';
-import 'package:awesome_video_player/data/datasources/settings_local_data_source.dart';
+import 'package:lumeo/domain/entities/app_settings.dart';
+import 'package:lumeo/data/repositories/settings_repository_impl.dart';
+import 'package:lumeo/data/datasources/settings_local_data_source.dart';
 
 import '../../helpers/test_data_builders.dart';
 

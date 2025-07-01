@@ -1,17 +1,17 @@
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_event.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bloc_test/bloc_test.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_event.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_state.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart'
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_event.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_state.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_state.dart'
     as theme_state; // aliased
-import 'package:awesome_video_player/presentation/screens/video_list_page.dart';
-import 'package:awesome_video_player/presentation/theme/app_themes.dart';
+import 'package:lumeo/presentation/screens/video_list_page.dart';
+import 'package:lumeo/presentation/theme/app_themes.dart';
 import 'package:mockito/mockito.dart';
 // Mock for path_provider and permission_handler are no longer needed here,
 // as we will mock the BLoC layer.

@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_event.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_state.dart';
-import 'package:awesome_video_player/presentation/screens/video_player_page.dart';
-import 'package:awesome_video_player/presentation/screens/settings_page.dart';
-import 'package:awesome_video_player/presentation/theme/app_themes.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_event.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_event.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_state.dart';
+import 'package:lumeo/presentation/screens/video_player_page.dart';
+import 'package:lumeo/presentation/screens/settings_page.dart';
+import 'package:lumeo/presentation/theme/app_themes.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_event.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_state.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
-import 'package:awesome_video_player/presentation/blocs/last_played_bloc/last_played_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/last_played_bloc/last_played_event.dart';
-import 'package:awesome_video_player/presentation/blocs/last_played_bloc/last_played_state.dart';
-import 'package:awesome_video_player/data/datasources/video_local_data_source.dart';
-import 'package:awesome_video_player/presentation/screens/favorites_page.dart';
-import 'package:awesome_video_player/presentation/blocs/favorites_bloc/favorites_bloc.dart';
+import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_bloc.dart';
+import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_event.dart';
+import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_state.dart';
+import 'package:lumeo/data/datasources/video_local_data_source.dart';
+import 'package:lumeo/presentation/screens/favorites_page.dart';
+import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
 
 class VideoListPage extends StatefulWidget {
   const VideoListPage({super.key});
@@ -541,38 +541,46 @@ class _VideoListPageState extends State<VideoListPage>
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: video.thumbnailPath != null
-                          ? Image.file(
-                              File(video.thumbnailPath!),
+                      child: video.thumbnailBytes != null
+                          ? Image.memory(
+                              video.thumbnailBytes!,
                               width: 80,
                               height: 80,
                               fit: BoxFit.cover,
                             )
-                          : Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withOpacity(0.3),
-                                    Theme.of(context)
-                                        .colorScheme
-                                        .secondary
-                                        .withOpacity(0.3),
-                                  ],
+                          : video.thumbnailPath != null
+                              ? Image.file(
+                                  File(video.thumbnailPath!),
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withOpacity(0.3),
+                                        Theme.of(context)
+                                            .colorScheme
+                                            .secondary
+                                            .withOpacity(0.3),
+                                      ],
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.play_circle_outline,
+                                    size: 30,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
                                 ),
-                              ),
-                              child: Icon(
-                                Icons.play_circle_outline,
-                                size: 30,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
                     ),
                   ),
                   // Status indicator
@@ -770,38 +778,46 @@ class _VideoListPageState extends State<VideoListPage>
                     Container(
                       width: double.infinity,
                       height: 120,
-                      child: video.thumbnailPath != null
-                          ? Image.file(
-                              File(video.thumbnailPath!),
+                      child: video.thumbnailBytes != null
+                          ? Image.memory(
+                              video.thumbnailBytes!,
                               width: double.infinity,
                               height: 120,
                               fit: BoxFit.cover,
                             )
-                          : Container(
-                              width: double.infinity,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withOpacity(0.3),
-                                    Theme.of(context)
-                                        .colorScheme
-                                        .secondary
-                                        .withOpacity(0.3),
-                                  ],
+                          : video.thumbnailPath != null
+                              ? Image.file(
+                                  File(video.thumbnailPath!),
+                                  width: double.infinity,
+                                  height: 120,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  width: double.infinity,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withOpacity(0.3),
+                                        Theme.of(context)
+                                            .colorScheme
+                                            .secondary
+                                            .withOpacity(0.3),
+                                      ],
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.play_circle_outline,
+                                    size: 60,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
                                 ),
-                              ),
-                              child: Icon(
-                                Icons.play_circle_outline,
-                                size: 60,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
                     ),
                     // Status indicator
                     Positioned(

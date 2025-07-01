@@ -1,4 +1,4 @@
-import 'package:awesome_video_player/domain/entities/app_settings.dart';
+import 'package:lumeo/domain/entities/app_settings.dart';
 
 abstract class SettingsRepository {
   /// Retrieves the current application settings.

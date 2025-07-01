@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/last_played_bloc/last_played_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/favorites_bloc/favorites_bloc.dart';
-import 'package:awesome_video_player/presentation/theme/app_themes.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
+import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_bloc.dart';
+import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
+import 'package:lumeo/presentation/theme/app_themes.dart';
 import 'mock_factories.dart';
 
 /// Test helpers for creating test widgets and common test utilities
@@ -24,13 +24,16 @@ class TestHelpers {
           create: (context) => themeBloc ?? MockFactories.createMockThemeBloc(),
         ),
         BlocProvider<VideoListBloc>(
-          create: (context) => videoListBloc ?? MockFactories.createMockVideoListBloc(),
+          create: (context) =>
+              videoListBloc ?? MockFactories.createMockVideoListBloc(),
         ),
         BlocProvider<LastPlayedBloc>(
-          create: (context) => lastPlayedBloc ?? MockFactories.createMockLastPlayedBloc(),
+          create: (context) =>
+              lastPlayedBloc ?? MockFactories.createMockLastPlayedBloc(),
         ),
         BlocProvider<FavoritesBloc>(
-          create: (context) => favoritesBloc ?? MockFactories.createMockFavoritesBloc(),
+          create: (context) =>
+              favoritesBloc ?? MockFactories.createMockFavoritesBloc(),
         ),
       ],
       child: MaterialApp(

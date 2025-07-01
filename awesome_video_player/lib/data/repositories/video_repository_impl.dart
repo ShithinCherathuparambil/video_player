@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/domain/repositories/video_repository.dart';
-import 'package:awesome_video_player/data/datasources/video_local_data_source.dart';
-import 'package:awesome_video_player/core/security/secure_storage.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/domain/repositories/video_repository.dart';
+import 'package:lumeo/data/datasources/video_local_data_source.dart';
+import 'package:lumeo/core/security/secure_storage.dart';
 
 class VideoRepositoryImpl implements VideoRepository {
   final VideoLocalDataSource localDataSource;

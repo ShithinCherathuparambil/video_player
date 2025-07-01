@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
 import '../../helpers/test_data_builders.dart';
 import '../../helpers/test_constants.dart';
 

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:awesome_video_player/domain/usecases/save_subtitles_enabled.dart';
+import 'package:lumeo/domain/usecases/save_subtitles_enabled.dart';
 import '../../helpers/mock_factories.dart';
 import '../../helpers/test_data_builders.dart';
 
@@ -17,11 +17,11 @@ void main() {
     group('Successful Execution Tests', () {
       test('should enable subtitles when passed true', () async {
         // arrange
-        final currentSettings = AppSettingsBuilder()
-            .withSubtitlesEnabled(false)
-            .build();
-        final expectedUpdatedSettings = currentSettings.copyWith(subtitlesEnabled: true);
-        
+        final currentSettings =
+            AppSettingsBuilder().withSubtitlesEnabled(false).build();
+        final expectedUpdatedSettings =
+            currentSettings.copyWith(subtitlesEnabled: true);
+
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => currentSettings);
         when(mockSettingsRepository.saveSettings(expectedUpdatedSettings))
@@ -32,17 +32,18 @@ void main() {
 
         // assert
         verify(mockSettingsRepository.getSettings()).called(1);
-        verify(mockSettingsRepository.saveSettings(expectedUpdatedSettings)).called(1);
+        verify(mockSettingsRepository.saveSettings(expectedUpdatedSettings))
+            .called(1);
         verifyNoMoreInteractions(mockSettingsRepository);
       });
 
       test('should disable subtitles when passed false', () async {
         // arrange
-        final currentSettings = AppSettingsBuilder()
-            .withSubtitlesEnabled(true)
-            .build();
-        final expectedUpdatedSettings = currentSettings.copyWith(subtitlesEnabled: false);
-        
+        final currentSettings =
+            AppSettingsBuilder().withSubtitlesEnabled(true).build();
+        final expectedUpdatedSettings =
+            currentSettings.copyWith(subtitlesEnabled: false);
+
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => currentSettings);
         when(mockSettingsRepository.saveSettings(expectedUpdatedSettings))
@@ -53,7 +54,8 @@ void main() {
 
         // assert
         verify(mockSettingsRepository.getSettings()).called(1);
-        verify(mockSettingsRepository.saveSettings(expectedUpdatedSettings)).called(1);
+        verify(mockSettingsRepository.saveSettings(expectedUpdatedSettings))
+            .called(1);
         verifyNoMoreInteractions(mockSettingsRepository);
       });
 
@@ -66,8 +68,9 @@ void main() {
             .withVideoDecoder('hardware')
             .withHardwareAcceleration(true)
             .build();
-        final expectedUpdatedSettings = currentSettings.copyWith(subtitlesEnabled: true);
-        
+        final expectedUpdatedSettings =
+            currentSettings.copyWith(subtitlesEnabled: true);
+
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => currentSettings);
         when(mockSettingsRepository.saveSettings(expectedUpdatedSettings))
@@ -78,20 +81,19 @@ void main() {
 
         // assert
         verify(mockSettingsRepository.getSettings()).called(1);
-        verify(mockSettingsRepository.saveSettings(expectedUpdatedSettings)).called(1);
+        verify(mockSettingsRepository.saveSettings(expectedUpdatedSettings))
+            .called(1);
         verifyNoMoreInteractions(mockSettingsRepository);
       });
 
       test('should handle toggling subtitles multiple times', () async {
         // arrange
-        final initialSettings = AppSettingsBuilder()
-            .withSubtitlesEnabled(false)
-            .build();
-        
+        final initialSettings =
+            AppSettingsBuilder().withSubtitlesEnabled(false).build();
+
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => initialSettings);
-        when(mockSettingsRepository.saveSettings(any))
-            .thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
 
         // act - toggle multiple times
         await usecase.call(true);
@@ -108,8 +110,7 @@ void main() {
       test('should propagate get settings exceptions', () async {
         // arrange
         final exception = Exception('Failed to get settings');
-        when(mockSettingsRepository.getSettings())
-            .thenThrow(exception);
+        when(mockSettingsRepository.getSettings()).thenThrow(exception);
 
         // act & assert
         expect(() => usecase.call(true), throwsA(exception));
@@ -121,11 +122,10 @@ void main() {
         // arrange
         final currentSettings = AppSettingsBuilder().build();
         final saveException = Exception('Failed to save settings');
-        
+
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => currentSettings);
-        when(mockSettingsRepository.saveSettings(any))
-            .thenThrow(saveException);
+        when(mockSettingsRepository.saveSettings(any)).thenThrow(saveException);
 
         // act & assert
         expect(() => usecase.call(true), throwsA(saveException));
@@ -137,7 +137,7 @@ void main() {
         // arrange
         final currentSettings = AppSettingsBuilder().build();
         final storageException = Exception('Storage error');
-        
+
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => currentSettings);
         when(mockSettingsRepository.saveSettings(any))
@@ -160,19 +160,19 @@ void main() {
             .withVideoDecoder('auto')
             .withHardwareAcceleration(false)
             .build();
-        
+
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => originalSettings);
-        when(mockSettingsRepository.saveSettings(any))
-            .thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
 
         // act
         await usecase.call(true);
 
         // assert
         final captured = verify(mockSettingsRepository.saveSettings(captureAny))
-            .captured.single;
-        
+            .captured
+            .single;
+
         expect(captured.themeMode, ThemeMode.system);
         expect(captured.isGridView, true);
         expect(captured.subtitlesEnabled, true); // This should be updated
@@ -187,19 +187,19 @@ void main() {
           isGridView: null,
           subtitlesEnabled: false,
         );
-        
+
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settingsWithNullGridView);
-        when(mockSettingsRepository.saveSettings(any))
-            .thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
 
         // act
         await usecase.call(true);
 
         // assert
         final captured = verify(mockSettingsRepository.saveSettings(captureAny))
-            .captured.single;
-        
+            .captured
+            .single;
+
         expect(captured.themeMode, ThemeMode.light);
         expect(captured.isGridView, null);
         expect(captured.subtitlesEnabled, true);
@@ -212,8 +212,7 @@ void main() {
         final settings = AppSettingsBuilder().build();
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settings);
-        when(mockSettingsRepository.saveSettings(any))
-            .thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
 
         // act
         final futures = [
@@ -233,8 +232,7 @@ void main() {
         final settings = AppSettingsBuilder().build();
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settings);
-        when(mockSettingsRepository.saveSettings(any))
-            .thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
 
         // act - simulate rapid toggling
         for (int i = 0; i < 5; i++) {
@@ -250,41 +248,39 @@ void main() {
     group('Business Logic Tests', () {
       test('should correctly update subtitles preference', () async {
         // arrange
-        final disabledSettings = AppSettingsBuilder()
-            .withSubtitlesEnabled(false)
-            .build();
-        
+        final disabledSettings =
+            AppSettingsBuilder().withSubtitlesEnabled(false).build();
+
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => disabledSettings);
-        when(mockSettingsRepository.saveSettings(any))
-            .thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
 
         // act
         await usecase.call(true);
 
         // assert
         final captured = verify(mockSettingsRepository.saveSettings(captureAny))
-            .captured.single;
+            .captured
+            .single;
         expect(captured.subtitlesEnabled, true);
       });
 
       test('should handle idempotent operations', () async {
         // arrange
-        final enabledSettings = AppSettingsBuilder()
-            .withSubtitlesEnabled(true)
-            .build();
-        
+        final enabledSettings =
+            AppSettingsBuilder().withSubtitlesEnabled(true).build();
+
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => enabledSettings);
-        when(mockSettingsRepository.saveSettings(any))
-            .thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
 
         // act - enable when already enabled
         await usecase.call(true);
 
         // assert
         final captured = verify(mockSettingsRepository.saveSettings(captureAny))
-            .captured.single;
+            .captured
+            .single;
         expect(captured.subtitlesEnabled, true);
         verify(mockSettingsRepository.getSettings()).called(1);
         verify(mockSettingsRepository.saveSettings(any)).called(1);
@@ -294,13 +290,11 @@ void main() {
     group('Integration Tests', () {
       test('should work correctly with repository implementation', () async {
         // arrange
-        final settings = AppSettingsBuilder()
-            .withSubtitlesEnabled(false)
-            .build();
+        final settings =
+            AppSettingsBuilder().withSubtitlesEnabled(false).build();
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settings);
-        when(mockSettingsRepository.saveSettings(any))
-            .thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
 
         // act
         await usecase.call(true);

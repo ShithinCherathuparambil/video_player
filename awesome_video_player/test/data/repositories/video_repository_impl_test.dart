@@ -1,9 +1,9 @@
 import 'dart:io'; // For Platform.pathSeparator, not strictly needed for test logic but good for context
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/data/datasources/video_local_data_source.dart';
-import 'package:awesome_video_player/data/repositories/video_repository_impl.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/data/datasources/video_local_data_source.dart';
+import 'package:lumeo/data/repositories/video_repository_impl.dart';
 
 // Import PermissionDeniedException for tests
 class PermissionDeniedException implements Exception {

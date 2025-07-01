@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:awesome_video_player/core/security/path_validator.dart';
+import 'package:lumeo/core/security/path_validator.dart';
 
 void main() {
   group('PathValidator Security Tests', () {

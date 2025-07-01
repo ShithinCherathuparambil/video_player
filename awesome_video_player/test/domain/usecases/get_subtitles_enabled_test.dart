@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:awesome_video_player/domain/usecases/get_subtitles_enabled.dart';
+import 'package:lumeo/domain/usecases/get_subtitles_enabled.dart';
 import '../../helpers/mock_factories.dart';
 import '../../helpers/test_data_builders.dart';
 
@@ -17,9 +17,8 @@ void main() {
     group('Successful Execution Tests', () {
       test('should return true when subtitles are enabled', () async {
         // arrange
-        final settingsWithSubtitlesEnabled = AppSettingsBuilder()
-            .withSubtitlesEnabled(true)
-            .build();
+        final settingsWithSubtitlesEnabled =
+            AppSettingsBuilder().withSubtitlesEnabled(true).build();
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settingsWithSubtitlesEnabled);
 
@@ -34,9 +33,8 @@ void main() {
 
       test('should return false when subtitles are disabled', () async {
         // arrange
-        final settingsWithSubtitlesDisabled = AppSettingsBuilder()
-            .withSubtitlesEnabled(false)
-            .build();
+        final settingsWithSubtitlesDisabled =
+            AppSettingsBuilder().withSubtitlesEnabled(false).build();
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settingsWithSubtitlesDisabled);
 
@@ -69,8 +67,7 @@ void main() {
       test('should propagate repository exceptions', () async {
         // arrange
         final exception = Exception('Settings load failed');
-        when(mockSettingsRepository.getSettings())
-            .thenThrow(exception);
+        when(mockSettingsRepository.getSettings()).thenThrow(exception);
 
         // act & assert
         expect(() => usecase.call(), throwsA(exception));
@@ -80,8 +77,7 @@ void main() {
       test('should propagate storage exceptions', () async {
         // arrange
         final storageException = Exception('Storage error');
-        when(mockSettingsRepository.getSettings())
-            .thenThrow(storageException);
+        when(mockSettingsRepository.getSettings()).thenThrow(storageException);
 
         // act & assert
         expect(() => usecase.call(), throwsA(storageException));
@@ -92,9 +88,8 @@ void main() {
     group('Performance Tests', () {
       test('should handle multiple concurrent calls', () async {
         // arrange
-        final settings = AppSettingsBuilder()
-            .withSubtitlesEnabled(true)
-            .build();
+        final settings =
+            AppSettingsBuilder().withSubtitlesEnabled(true).build();
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settings);
 
@@ -111,7 +106,8 @@ void main() {
     });
 
     group('Business Logic Tests', () {
-      test('should extract subtitles preference from complete settings', () async {
+      test('should extract subtitles preference from complete settings',
+          () async {
         // arrange
         final complexSettings = AppSettingsBuilder()
             .withThemeMode(ThemeMode.dark)
@@ -155,9 +151,8 @@ void main() {
     group('Integration Tests', () {
       test('should work correctly with repository implementation', () async {
         // arrange
-        final settings = AppSettingsBuilder()
-            .withSubtitlesEnabled(true)
-            .build();
+        final settings =
+            AppSettingsBuilder().withSubtitlesEnabled(true).build();
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settings);
 

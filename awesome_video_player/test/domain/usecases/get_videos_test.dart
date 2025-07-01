@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/domain/repositories/video_repository.dart';
-import 'package:awesome_video_player/domain/usecases/get_videos.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/domain/repositories/video_repository.dart';
+import 'package:lumeo/domain/usecases/get_videos.dart';
 import '../../helpers/mock_factories.dart';
 import '../../helpers/test_data_builders.dart';
 import '../../helpers/test_constants.dart';

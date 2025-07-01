@@ -2,11 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart'; // Added
-import 'package:awesome_video_player/presentation/screens/splash_screen.dart';
-import 'package:awesome_video_player/presentation/screens/video_list_page.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart'; // Added
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_bloc.dart'; // Added
-import 'package:awesome_video_player/presentation/theme/app_themes.dart'; // Added for MaterialApp theming
+import 'package:lumeo/presentation/screens/splash_screen.dart';
+import 'package:lumeo/presentation/screens/video_list_page.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart'; // Added
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart'; // Added
+import 'package:lumeo/presentation/theme/app_themes.dart'; // Added for MaterialApp theming
 
 // A simple mock navigator observer to track navigation events
 class MockNavigatorObserver extends NavigatorObserver {
@@ -29,32 +29,35 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
-      // If ThemeBloc's deps (use cases -> repo -> data source) need SharedPreferences, mock it here.
-      // This was done in theme_provider_test.dart and settings_page_test.dart.
-      // Since ThemeBloc.create() instantiates the chain, and SettingsLocalDataSourceImpl (used by it)
-      // now fetches SharedPreferences internally, this should be okay for the real ThemeBloc.
-      // SharedPreferences.setMockInitialValues({}); // Already handled by ThemeBloc tests if run together, ensure it's fine here too.
+    // If ThemeBloc's deps (use cases -> repo -> data source) need SharedPreferences, mock it here.
+    // This was done in theme_provider_test.dart and settings_page_test.dart.
+    // Since ThemeBloc.create() instantiates the chain, and SettingsLocalDataSourceImpl (used by it)
+    // now fetches SharedPreferences internally, this should be okay for the real ThemeBloc.
+    // SharedPreferences.setMockInitialValues({}); // Already handled by ThemeBloc tests if run together, ensure it's fine here too.
   });
 
-
   group('SplashScreen Widget Tests', () {
-    testWidgets('Displays initial UI elements (logo and text)', (WidgetTester tester) async {
+    testWidgets('Displays initial UI elements (logo and text)',
+        (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
 
       expect(find.byType(FlutterLogo), findsOneWidget);
       expect(find.text('Awesome Video Player'), findsOneWidget);
 
-      final AnimatedOpacity animatedOpacity = tester.widget(find.byType(AnimatedOpacity));
+      final AnimatedOpacity animatedOpacity =
+          tester.widget(find.byType(AnimatedOpacity));
       expect(animatedOpacity.opacity, 0.0);
 
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 100));
 
-      final AnimatedOpacity animatedOpacityAfterAnimationStart = tester.widget(find.byType(AnimatedOpacity));
+      final AnimatedOpacity animatedOpacityAfterAnimationStart =
+          tester.widget(find.byType(AnimatedOpacity));
       expect(animatedOpacityAfterAnimationStart.opacity, 1.0);
     });
 
-    testWidgets('Navigates to VideoListPage after timer with BLoC providers', (WidgetTester tester) async {
+    testWidgets('Navigates to VideoListPage after timer with BLoC providers',
+        (WidgetTester tester) async {
       final mockObserver = MockNavigatorObserver();
 
       // It's important that the MaterialApp providing context for SplashScreen
@@ -63,33 +66,33 @@ void main() {
       // The critical part is that the MaterialApp used for testing the navigation
       // must be able to build VideoListPage correctly.
 
-      await tester.pumpWidget(
-        MultiBlocProvider( // Provide ThemeBloc at a level that VideoListPage can access via MaterialApp's context
-          providers: [
-            BlocProvider<ThemeBloc>(
-              create: (context) => ThemeBloc.create(),
-            ),
-            // VideoListBloc will be provided within VideoListPage itself in its own test.
-            // For navigation test, VideoListPage needs to be wrapped if it expects BlocProvider higher up.
-            // VideoListPage now provides its own VideoListBloc. So this might not be needed here.
-            // Let's check VideoListPage structure: it uses BlocProvider internally.
-          ],
-          child: MaterialApp( // This MaterialApp is for the test environment
-            theme: AppThemes.lightTheme,
-            darkTheme: AppThemes.darkTheme,
-            // themeMode will be picked up by ThemeBloc if MaterialApp is rebuilt by a BlocBuilder,
-            // which it is in the actual app's main.dart. For this test, direct provision is key.
-            home: const SplashScreen(),
-            routes: {
-              // The route for VideoListPage must provide its own BLoCs or inherit them.
-              // VideoListPage now has its own BlocProvider for VideoListBloc.
-              // It will inherit ThemeBloc from MultiBlocProvider above.
-              '/video_list': (context) => const VideoListPage(),
-            },
-            navigatorObservers: [mockObserver],
+      await tester.pumpWidget(MultiBlocProvider(
+        // Provide ThemeBloc at a level that VideoListPage can access via MaterialApp's context
+        providers: [
+          BlocProvider<ThemeBloc>(
+            create: (context) => ThemeBloc.create(),
           ),
-        )
-      );
+          // VideoListBloc will be provided within VideoListPage itself in its own test.
+          // For navigation test, VideoListPage needs to be wrapped if it expects BlocProvider higher up.
+          // VideoListPage now provides its own VideoListBloc. So this might not be needed here.
+          // Let's check VideoListPage structure: it uses BlocProvider internally.
+        ],
+        child: MaterialApp(
+          // This MaterialApp is for the test environment
+          theme: AppThemes.lightTheme,
+          darkTheme: AppThemes.darkTheme,
+          // themeMode will be picked up by ThemeBloc if MaterialApp is rebuilt by a BlocBuilder,
+          // which it is in the actual app's main.dart. For this test, direct provision is key.
+          home: const SplashScreen(),
+          routes: {
+            // The route for VideoListPage must provide its own BLoCs or inherit them.
+            // VideoListPage now has its own BlocProvider for VideoListBloc.
+            // It will inherit ThemeBloc from MultiBlocProvider above.
+            '/video_list': (context) => const VideoListPage(),
+          },
+          navigatorObservers: [mockObserver],
+        ),
+      ));
 
       expect(find.byType(SplashScreen), findsOneWidget);
       expect(find.byType(VideoListPage), findsNothing);

@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bloc_test/bloc_test.dart';
-import 'package:awesome_video_player/presentation/blocs/video_player_cubit/video_player_cubit.dart';
-import 'package:awesome_video_player/presentation/blocs/video_player_cubit/video_player_state.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart'; // For providing ThemeBloc
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_event.dart'; // For ThemeEvent
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart'
+import 'package:lumeo/presentation/blocs/video_player_cubit/video_player_cubit.dart';
+import 'package:lumeo/presentation/blocs/video_player_cubit/video_player_state.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart'; // For providing ThemeBloc
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_event.dart'; // For ThemeEvent
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_state.dart'
     as theme_state; // Aliased
-import 'package:awesome_video_player/presentation/screens/video_player_page.dart';
-import 'package:awesome_video_player/presentation/theme/app_themes.dart'; // For MaterialApp
-import 'package:awesome_video_player/domain/entities/video_file.dart'; // For VideoFile entity
+import 'package:lumeo/presentation/screens/video_player_page.dart';
+import 'package:lumeo/presentation/theme/app_themes.dart'; // For MaterialApp
+import 'package:lumeo/domain/entities/video_file.dart'; // For VideoFile entity
 import '../helpers/mock_video_player_platform.dart';
 
 // Mock Cubits

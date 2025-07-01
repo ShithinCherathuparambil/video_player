@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bloc_test/bloc_test.dart'; // For MockBloc
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_event.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart';
-import 'package:awesome_video_player/presentation/screens/settings_page.dart';
-import 'package:awesome_video_player/presentation/theme/app_themes.dart'; // For MaterialApp theming
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_event.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_state.dart';
+import 'package:lumeo/presentation/screens/settings_page.dart';
+import 'package:lumeo/presentation/theme/app_themes.dart'; // For MaterialApp theming
 
 // Mock ThemeBloc for widget tests
 class MockThemeBloc extends MockBloc<ThemeEvent, ThemeState>

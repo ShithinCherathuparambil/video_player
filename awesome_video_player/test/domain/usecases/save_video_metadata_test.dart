@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/domain/repositories/video_repository.dart';
-import 'package:awesome_video_player/domain/usecases/save_video_metadata.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/domain/repositories/video_repository.dart';
+import 'package:lumeo/domain/usecases/save_video_metadata.dart';
 import '../../helpers/mock_factories.dart';
 import '../../helpers/test_data_builders.dart';
 import '../../helpers/test_constants.dart';
@@ -52,7 +52,8 @@ void main() {
         await usecase.call(videoWithPosition);
 
         // assert
-        verify(mockVideoRepository.saveVideoMetadata(videoWithPosition)).called(1);
+        verify(mockVideoRepository.saveVideoMetadata(videoWithPosition))
+            .called(1);
         verifyNoMoreInteractions(mockVideoRepository);
       });
 
@@ -93,8 +94,7 @@ void main() {
       test('should propagate repository exceptions', () async {
         // arrange
         final exception = Exception('Save failed');
-        when(mockVideoRepository.saveVideoMetadata(any))
-            .thenThrow(exception);
+        when(mockVideoRepository.saveVideoMetadata(any)).thenThrow(exception);
 
         // act & assert
         expect(() => usecase.call(testVideoFile), throwsA(exception));
@@ -147,9 +147,11 @@ void main() {
         await usecase.call(complexVideo);
 
         // assert
-        final captured = verify(mockVideoRepository.saveVideoMetadata(captureAny))
-            .captured.single as VideoFile;
-        
+        final captured =
+            verify(mockVideoRepository.saveVideoMetadata(captureAny))
+                .captured
+                .single as VideoFile;
+
         expect(captured.path, '/complex/video.mp4');
         expect(captured.name, 'Complex Video');
         expect(captured.thumbnailPath, '/complex/thumbnail.jpg');
@@ -175,9 +177,11 @@ void main() {
         await usecase.call(minimalVideo);
 
         // assert
-        final captured = verify(mockVideoRepository.saveVideoMetadata(captureAny))
-            .captured.single as VideoFile;
-        
+        final captured =
+            verify(mockVideoRepository.saveVideoMetadata(captureAny))
+                .captured
+                .single as VideoFile;
+
         expect(captured.path, TestConstants.testVideoPath);
         expect(captured.name, TestConstants.testVideoName);
         expect(captured.thumbnailPath, null);
@@ -203,14 +207,17 @@ void main() {
         await Future.wait(futures);
 
         // assert
-        verify(mockVideoRepository.saveVideoMetadata(any)).called(videos.length);
+        verify(mockVideoRepository.saveVideoMetadata(any))
+            .called(videos.length);
       });
 
       test('should handle large video metadata', () async {
         // arrange
         final largeVideo = VideoFileBuilder()
-            .withPath('/very/long/path/to/video/file/with/many/subdirectories/video.mp4')
-            .withName('Very Long Video Name That Exceeds Normal Length Expectations')
+            .withPath(
+                '/very/long/path/to/video/file/with/many/subdirectories/video.mp4')
+            .withName(
+                'Very Long Video Name That Exceeds Normal Length Expectations')
             .withFileSize(10000000000) // 10GB
             .withDuration(const Duration(hours: 10))
             .build();

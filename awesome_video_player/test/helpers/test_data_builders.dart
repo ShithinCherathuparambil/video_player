@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/domain/entities/app_settings.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/domain/entities/app_settings.dart';
 
 /// Builder pattern for creating test data with fluent API
 class VideoFileBuilder {

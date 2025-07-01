@@ -1,11 +1,14 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:awesome_video_player/data/datasources/video_local_data_source.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/core/error/exceptions.dart';
+import 'package:lumeo/data/datasources/video_local_data_source.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/core/error/exceptions.dart';
 import '../../helpers/test_utils.dart';
 import '../../helpers/test_constants.dart';
+import 'package:photo_manager/photo_manager.dart';
+import 'package:flutter/foundation.dart';
 
 void main() {
   group('VideoLocalDataSource Tests', () {
@@ -25,7 +28,8 @@ void main() {
     group('Constructor Tests', () {
       test('should create instance with provided directory', () {
         // arrange & act
-        final dataSourceWithDir = VideoLocalDataSourceImpl(directory: tempDirectory);
+        final dataSourceWithDir =
+            VideoLocalDataSourceImpl(directory: tempDirectory);
 
         // assert
         expect(dataSourceWithDir, isA<VideoLocalDataSourceImpl>());
@@ -86,9 +90,20 @@ void main() {
 
       test('should handle multiple video formats', () async {
         // arrange
-        final videoFormats = ['.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm', '.m4v', '.3gp'];
+        final videoFormats = [
+          '.mp4',
+          '.mov',
+          '.avi',
+          '.mkv',
+          '.wmv',
+          '.flv',
+          '.webm',
+          '.m4v',
+          '.3gp'
+        ];
         for (int i = 0; i < videoFormats.length; i++) {
-          await File('${tempDirectory.path}/video$i${videoFormats[i]}').create();
+          await File('${tempDirectory.path}/video$i${videoFormats[i]}')
+              .create();
         }
 
         // act
@@ -97,7 +112,8 @@ void main() {
         // assert
         expect(result.length, videoFormats.length);
         for (int i = 0; i < videoFormats.length; i++) {
-          expect(result.any((v) => v.name == 'video$i${videoFormats[i]}'), true);
+          expect(
+              result.any((v) => v.name == 'video$i${videoFormats[i]}'), true);
         }
       });
 
@@ -155,16 +171,18 @@ void main() {
       test('should throw CacheException when directory access fails', () async {
         // arrange
         final nonExistentDir = Directory('/non/existent/path');
-        final dataSourceWithBadDir = VideoLocalDataSourceImpl(directory: nonExistentDir);
+        final dataSourceWithBadDir =
+            VideoLocalDataSourceImpl(directory: nonExistentDir);
 
         // act & assert
-        expect(() => dataSourceWithBadDir.getVideos(), throwsA(isA<CacheException>()));
+        expect(() => dataSourceWithBadDir.getVideos(),
+            throwsA(isA<CacheException>()));
       });
 
       test('should handle permission denied scenarios', () async {
         // Note: This is difficult to test in a unit test environment
         // In a real scenario, you would mock the platform-specific permission handling
-        
+
         // arrange & act & assert
         expect(() => dataSource.requestPermissions(), returnsNormally);
       });
@@ -202,10 +220,10 @@ void main() {
         // arrange
         final smallFile = File('${tempDirectory.path}/small.mp4');
         final largeFile = File('${tempDirectory.path}/large.mp4');
-        
+
         await smallFile.create();
         await smallFile.writeAsBytes(List.filled(100, 0)); // 100 bytes
-        
+
         await largeFile.create();
         await largeFile.writeAsBytes(List.filled(10000, 0)); // 10KB
 
@@ -216,7 +234,7 @@ void main() {
         expect(result.length, 2);
         final smallVideo = result.firstWhere((v) => v.name == 'small.mp4');
         final largeVideo = result.firstWhere((v) => v.name == 'large.mp4');
-        
+
         expect(smallVideo.fileSize, 100);
         expect(largeVideo.fileSize, 10000);
       });
@@ -236,7 +254,8 @@ void main() {
 
         // assert
         expect(result.length, 50);
-        expect(stopwatch.elapsedMilliseconds, lessThan(5000)); // Should complete within 5 seconds
+        expect(stopwatch.elapsedMilliseconds,
+            lessThan(5000)); // Should complete within 5 seconds
       });
 
       test('should handle concurrent getVideos calls', () async {
@@ -259,12 +278,20 @@ void main() {
       test('should recognize all supported video extensions', () async {
         // arrange
         final supportedExtensions = [
-          '.mp4', '.mov', '.avi', '.mkv', '.wmv', 
-          '.flv', '.webm', '.m4v', '.3gp'
+          '.mp4',
+          '.mov',
+          '.avi',
+          '.mkv',
+          '.wmv',
+          '.flv',
+          '.webm',
+          '.m4v',
+          '.3gp'
         ];
-        
+
         for (int i = 0; i < supportedExtensions.length; i++) {
-          await File('${tempDirectory.path}/video$i${supportedExtensions[i]}').create();
+          await File('${tempDirectory.path}/video$i${supportedExtensions[i]}')
+              .create();
         }
 
         // act
@@ -277,15 +304,19 @@ void main() {
       test('should ignore unsupported file extensions', () async {
         // arrange
         final unsupportedFiles = [
-          'audio.mp3', 'image.png', 'document.pdf', 
-          'archive.zip', 'text.txt'
+          'audio.mp3',
+          'image.png',
+          'document.pdf',
+          'archive.zip',
+          'text.txt'
         ];
-        
+
         for (final fileName in unsupportedFiles) {
           await File('${tempDirectory.path}/$fileName').create();
         }
-        
-        await File('${tempDirectory.path}/video.mp4').create(); // One valid video
+
+        await File('${tempDirectory.path}/video.mp4')
+            .create(); // One valid video
 
         // act
         final result = await dataSource.getVideos();
@@ -327,5 +358,54 @@ void main() {
         expect(result.first.dateAdded, isNotNull);
       });
     });
+
+    group('iOS-specific Tests', () {
+      test('should use thumbnailBytes and correct name for iOS AssetEntity',
+          () async {
+        // Simulate iOS platform
+        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+
+        // Mock AssetEntity
+        final mockEntity = MockAssetEntity();
+        final mockFile = File('${tempDirectory.path}/ios_video.mov');
+        await mockFile.create();
+        final fakeBytes = Uint8List.fromList([1, 2, 3, 4, 5]);
+        when(mockEntity.type).thenReturn(AssetType.video);
+        when(mockEntity.file).thenAnswer((_) async => mockFile);
+        when(mockEntity.title).thenReturn('My iOS Video');
+        when(mockEntity.thumbnailDataWithSize(any))
+            .thenAnswer((Invocation inv) async => fakeBytes);
+        when(mockEntity.createDateTime).thenReturn(DateTime.now());
+
+        // Patch _getPlatformVideos to use our mock entity
+        final dataSourceIOS = VideoLocalDataSourceImpl();
+        Future<List<VideoFile>> fakeGetPlatformVideos() async {
+          final file = await mockEntity.file;
+          final thumbnailBytes =
+              await mockEntity.thumbnailDataWithSize(ThumbnailSize(120, 120));
+          return [
+            VideoFile(
+              path: file!.path,
+              name: mockEntity.title!,
+              thumbnailBytes: thumbnailBytes,
+              duration: null,
+              fileSize: await file.length(),
+              dateAdded: mockEntity.createDateTime,
+            )
+          ];
+        }
+
+        // act
+        final result = await fakeGetPlatformVideos();
+        // assert
+        expect(result, isNotEmpty);
+        expect(result.first.name, 'My iOS Video');
+        expect(result.first.thumbnailBytes, isNotNull);
+        expect(result.first.thumbnailBytes, fakeBytes);
+        debugDefaultTargetPlatformOverride = null; // Reset after test
+      });
+    });
   });
 }
+
+class MockAssetEntity extends Mock implements AssetEntity {}

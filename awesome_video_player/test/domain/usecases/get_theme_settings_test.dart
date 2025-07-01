@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:flutter/material.dart';
-import 'package:awesome_video_player/domain/entities/app_settings.dart';
-import 'package:awesome_video_player/domain/usecases/get_theme_settings.dart';
+import 'package:lumeo/domain/entities/app_settings.dart';
+import 'package:lumeo/domain/usecases/get_theme_settings.dart';
 import '../../helpers/mock_factories.dart';
 import '../../helpers/test_data_builders.dart';
 

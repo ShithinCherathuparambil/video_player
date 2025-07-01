@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:awesome_video_player/core/security/secure_storage.dart';
+import 'package:lumeo/core/security/secure_storage.dart';
 
 void main() {
   group('SecureStorage Security Tests', () {
@@ -48,7 +48,7 @@ void main() {
         // Check that raw stored data is not the original value
         final prefs = await SharedPreferences.getInstance();
         final rawStored = prefs.getString('secure_$testKey');
-        
+
         expect(rawStored, isNotNull);
         expect(rawStored, isNot(equals(testValue)));
         expect(rawStored!.contains(testValue), isFalse);
@@ -83,9 +83,9 @@ void main() {
     group('Key Management', () {
       test('should check if key exists', () async {
         const testKey = 'existence_test';
-        
+
         expect(await SecureStorage.containsSecureKey(testKey), isFalse);
-        
+
         await SecureStorage.setSecureString(testKey, 'test_value');
         expect(await SecureStorage.containsSecureKey(testKey), isTrue);
       });
@@ -130,7 +130,7 @@ void main() {
     group('Error Handling', () {
       test('should handle corrupted encrypted data gracefully', () async {
         const testKey = 'corruption_test';
-        
+
         // Manually store corrupted data
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('secure_$testKey', 'corrupted_base64_data!!!');
@@ -160,11 +160,13 @@ void main() {
         await SecureStorage.setSecureString(testKey, testValue);
 
         // Calculate expected hash
-        final expectedHash = 'a8b2c3d4e5f6'; // This would be calculated properly in real implementation
-        
+        final expectedHash =
+            'a8b2c3d4e5f6'; // This would be calculated properly in real implementation
+
         // Note: This test would need the actual hash calculation
         // For now, we just test that the method exists and handles errors
-        final isValid = await SecureStorage.validateDataIntegrity(testKey, 'wrong_hash');
+        final isValid =
+            await SecureStorage.validateDataIntegrity(testKey, 'wrong_hash');
         expect(isValid, isFalse);
       });
     });

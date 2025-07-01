@@ -1,5 +1,5 @@
-import 'package:awesome_video_player/domain/entities/app_settings.dart';
-import 'package:awesome_video_player/domain/repositories/settings_repository.dart';
+import 'package:lumeo/domain/entities/app_settings.dart';
+import 'package:lumeo/domain/repositories/settings_repository.dart';
 
 class GetThemeSettings {
   final SettingsRepository _repository;

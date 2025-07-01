@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/presentation/blocs/favorites_bloc/favorites_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/favorites_bloc/favorites_event.dart';
-import 'package:awesome_video_player/presentation/blocs/favorites_bloc/favorites_state.dart';
-import 'package:awesome_video_player/presentation/screens/video_player_page.dart';
-import 'package:awesome_video_player/presentation/blocs/last_played_bloc/last_played_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/last_played_bloc/last_played_event.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_event.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
+import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_event.dart';
+import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_state.dart';
+import 'package:lumeo/presentation/screens/video_player_page.dart';
+import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_bloc.dart';
+import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_event.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_event.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
 
@@ -106,18 +106,31 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           borderRadius: BorderRadius.circular(8),
                           color: Colors.grey[300],
                         ),
-                        child: video.thumbnailPath != null
+                        child: video.thumbnailBytes != null
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.file(
-                                  File(video.thumbnailPath!),
+                                child: Image.memory(
+                                  video.thumbnailBytes!,
                                   fit: BoxFit.cover,
+                                  width: 60,
+                                  height: 60,
                                 ),
                               )
-                            : Icon(
-                                Icons.play_circle_outline,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
+                            : video.thumbnailPath != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.file(
+                                      File(video.thumbnailPath!),
+                                      fit: BoxFit.cover,
+                                      width: 60,
+                                      height: 60,
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.play_circle_outline,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
                       ),
                       title: Text(
                         video.name,

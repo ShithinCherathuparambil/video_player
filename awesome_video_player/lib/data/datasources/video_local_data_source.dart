@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:lumeo/core/error/exceptions.dart';
+import 'package:lumeo/core/security/path_validator.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:video_player/video_player.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/core/error/exceptions.dart';
-import 'package:awesome_video_player/core/security/path_validator.dart';
 import 'package:path/path.dart' as path;
 import 'package:photo_manager/photo_manager.dart';
 
@@ -47,6 +47,10 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
       final PermissionState ps = await PhotoManager.requestPermissionExtend();
 
       if (!ps.hasAccess) {
+        assert(() {
+          debugPrint('Permission not granted for photo library.');
+          return true;
+        }());
         throw PermissionDeniedException(
             'Photo library permission not granted. Please grant permission in settings.');
       }
@@ -57,6 +61,10 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
       );
 
       if (paths.isEmpty) {
+        assert(() {
+          debugPrint('No video albums found.');
+          return true;
+        }());
         return videos; // No video albums found
       }
 
@@ -67,23 +75,46 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
         size: 100, // Increased to get more videos
       );
 
+      assert(() {
+        debugPrint('Found \\${entities.length} video assets');
+        return true;
+      }());
+
       for (int i = 0; i < entities.length; i++) {
         final entity = entities[i];
 
         if (entity.type == AssetType.video) {
           final file = await entity.file;
-          if (file != null && PathValidator.isValidVideoPath(file.path)) {
+          assert(() {
+            debugPrint('Asset file path: \\${file?.path}');
+            return true;
+          }());
+          final isValid =
+              file != null ? PathValidator.isValidVideoPath(file.path) : false;
+          assert(() {
+            debugPrint('PathValidator.isValidVideoPath: \\${isValid}');
+            return true;
+          }());
+          if (file != null && (Platform.isIOS || isValid)) {
             // Only generate thumbnail for the first 10 videos to improve loading speed
             String? thumbnailPath;
+            Uint8List? thumbnailBytes;
             Duration? duration;
             if (videos.length < 10) {
-              // Generate thumbnail and duration in parallel for better performance
-              final results = await Future.wait([
-                _generateThumbnail(file.path),
-                _extractVideoDuration(file.path),
-              ]);
-              thumbnailPath = results[0] as String?;
-              duration = results[1] as Duration?;
+              if (Platform.isIOS) {
+                // Use photo_manager's built-in thumbnail for iOS
+                thumbnailBytes =
+                    await entity.thumbnailDataWithSize(ThumbnailSize(120, 120));
+                duration = await _extractVideoDuration(file.path);
+              } else {
+                // Android: generate thumbnail file as before
+                final results = await Future.wait([
+                  _generateThumbnail(file.path),
+                  _extractVideoDuration(file.path),
+                ]);
+                thumbnailPath = results[0] as String?;
+                duration = results[1] as Duration?;
+              }
             }
 
             // Validate thumbnail path for security
@@ -94,22 +125,47 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
 
             final videoFile = VideoFile(
               path: file.path,
-              name: PathValidator.getSecureFileName(file.path),
+              name: (Platform.isIOS &&
+                      entity.title != null &&
+                      entity.title!.isNotEmpty)
+                  ? entity.title!
+                  : (path.basename(file.path).isNotEmpty
+                      ? path.basename(file.path)
+                      : 'Video'),
               thumbnailPath: thumbnailPath,
+              thumbnailBytes: thumbnailBytes,
               duration: duration,
               fileSize: await file.length(),
               dateAdded: entity.createDateTime,
             );
 
             videos.add(videoFile);
+          } else {
+            assert(() {
+              debugPrint('Skipped file: \\${file?.path} (invalid or null)');
+              return true;
+            }());
           }
+        } else {
+          assert(() {
+            debugPrint('Skipped non-video asset');
+            return true;
+          }());
         }
       }
+      assert(() {
+        debugPrint('Returning \\${videos.length} valid videos');
+        return true;
+      }());
     } catch (e) {
+      assert(() {
+        debugPrint('Error in _getPlatformVideos: \\${e.toString()}');
+        return true;
+      }());
       if (e is PermissionDeniedException) {
         rethrow; // Re-throw permission exceptions
       }
-      throw CacheException('Failed to load videos: $e');
+      throw CacheException('Failed to load videos: \\${e.toString()}');
     }
     return videos;
   }

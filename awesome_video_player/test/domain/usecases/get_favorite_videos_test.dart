@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/domain/repositories/video_repository.dart';
-import 'package:awesome_video_player/domain/usecases/get_favorite_videos.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/domain/repositories/video_repository.dart';
+import 'package:lumeo/domain/usecases/get_favorite_videos.dart';
 import '../../helpers/mock_factories.dart';
 import '../../helpers/test_data_builders.dart';
 import '../../helpers/test_constants.dart';
@@ -74,13 +74,13 @@ void main() {
 
       test('should return multiple favorite videos', () async {
         // arrange
-        final multipleFavorites = List.generate(5, (index) =>
-            VideoFileBuilder()
+        final multipleFavorites = List.generate(
+            5,
+            (index) => VideoFileBuilder()
                 .withPath('/favorite$index.mp4')
                 .withName('Favorite $index')
                 .asFavorite()
-                .build()
-        );
+                .build());
         when(mockVideoRepository.getFavoriteVideos())
             .thenAnswer((_) async => multipleFavorites);
 
@@ -99,8 +99,7 @@ void main() {
       test('should propagate repository exceptions', () async {
         // arrange
         final exception = Exception('Failed to get favorites');
-        when(mockVideoRepository.getFavoriteVideos())
-            .thenThrow(exception);
+        when(mockVideoRepository.getFavoriteVideos()).thenThrow(exception);
 
         // act & assert
         expect(() => usecase.call(), throwsA(exception));
@@ -245,13 +244,13 @@ void main() {
     group('Performance Tests', () {
       test('should handle large list of favorite videos', () async {
         // arrange
-        final largeFavoriteList = List.generate(100, (index) =>
-            VideoFileBuilder()
+        final largeFavoriteList = List.generate(
+            100,
+            (index) => VideoFileBuilder()
                 .withPath('/favorite$index.mp4')
                 .withName('Favorite $index')
                 .asFavorite()
-                .build()
-        );
+                .build());
         when(mockVideoRepository.getFavoriteVideos())
             .thenAnswer((_) async => largeFavoriteList);
 
@@ -288,10 +287,13 @@ void main() {
         // arrange
         final mixedVideos = [
           VideoFileBuilder().withPath('/favorite1.mp4').asFavorite().build(),
-          VideoFileBuilder().withPath('/not_favorite.mp4').asNotFavorite().build(),
+          VideoFileBuilder()
+              .withPath('/not_favorite.mp4')
+              .asNotFavorite()
+              .build(),
           VideoFileBuilder().withPath('/favorite2.mp4').asFavorite().build(),
         ];
-        
+
         // Repository should only return favorites
         final onlyFavorites = mixedVideos.where((v) => v.isFavorite).toList();
         when(mockVideoRepository.getFavoriteVideos())
@@ -303,7 +305,8 @@ void main() {
         // assert
         expect(result.length, 2);
         expect(result.every((video) => video.isFavorite), true);
-        expect(result.map((v) => v.path), containsAll(['/favorite1.mp4', '/favorite2.mp4']));
+        expect(result.map((v) => v.path),
+            containsAll(['/favorite1.mp4', '/favorite2.mp4']));
       });
 
       test('should maintain order returned by repository', () async {

@@ -1,5 +1,5 @@
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/domain/repositories/video_repository.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/domain/repositories/video_repository.dart';
 
 class GetFavoriteVideos {
   final VideoRepository repository;

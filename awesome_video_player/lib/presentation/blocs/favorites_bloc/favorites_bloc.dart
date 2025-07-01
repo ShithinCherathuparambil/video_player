@@ -1,9 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/domain/usecases/get_favorite_videos.dart';
-import 'package:awesome_video_player/domain/usecases/toggle_favorite.dart';
-import 'package:awesome_video_player/data/datasources/video_local_data_source.dart';
-import 'package:awesome_video_player/data/repositories/video_repository_impl.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/domain/usecases/get_favorite_videos.dart';
+import 'package:lumeo/domain/usecases/toggle_favorite.dart';
+import 'package:lumeo/data/datasources/video_local_data_source.dart';
+import 'package:lumeo/data/repositories/video_repository_impl.dart';
 import './favorites_event.dart';
 import './favorites_state.dart';
 

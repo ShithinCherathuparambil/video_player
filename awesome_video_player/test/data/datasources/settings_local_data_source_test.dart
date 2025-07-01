@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:awesome_video_player/data/datasources/settings_local_data_source.dart';
+import 'package:lumeo/data/datasources/settings_local_data_source.dart';
 import '../../helpers/test_utils.dart';
 
 void main() {
@@ -53,7 +53,8 @@ void main() {
         expect(result, ThemeMode.dark);
       });
 
-      test('should return system theme mode for invalid stored value', () async {
+      test('should return system theme mode for invalid stored value',
+          () async {
         // arrange
         SharedPreferences.setMockInitialValues({'theme_mode': 'invalid'});
 
@@ -161,7 +162,8 @@ void main() {
     });
 
     group('Subtitles Enabled Tests', () {
-      test('should return true as default subtitles enabled preference', () async {
+      test('should return true as default subtitles enabled preference',
+          () async {
         // arrange
         SharedPreferences.setMockInitialValues({});
 
@@ -286,7 +288,7 @@ void main() {
       test('should handle SharedPreferences exceptions gracefully', () async {
         // Note: In a real scenario, you might want to test actual SharedPreferences failures
         // For now, we test that the methods complete without throwing
-        
+
         // arrange
         SharedPreferences.setMockInitialValues({});
 
@@ -294,7 +296,8 @@ void main() {
         expect(() => dataSource.getThemeMode(), returnsNormally);
         expect(() => dataSource.getGridViewPreference(), returnsNormally);
         expect(() => dataSource.getSubtitlesEnabled(), returnsNormally);
-        expect(() => dataSource.saveThemeMode(ThemeMode.light), returnsNormally);
+        expect(
+            () => dataSource.saveThemeMode(ThemeMode.light), returnsNormally);
         expect(() => dataSource.saveGridViewPreference(true), returnsNormally);
         expect(() => dataSource.saveSubtitlesEnabled(true), returnsNormally);
       });
@@ -310,11 +313,13 @@ void main() {
         });
 
         // act
-        final futures = List.generate(10, (_) => Future.wait([
-          dataSource.getThemeMode(),
-          dataSource.getGridViewPreference(),
-          dataSource.getSubtitlesEnabled(),
-        ]));
+        final futures = List.generate(
+            10,
+            (_) => Future.wait([
+                  dataSource.getThemeMode(),
+                  dataSource.getGridViewPreference(),
+                  dataSource.getSubtitlesEnabled(),
+                ]));
 
         final results = await Future.wait(futures);
 
@@ -331,11 +336,14 @@ void main() {
         SharedPreferences.setMockInitialValues({});
 
         // act
-        final futures = List.generate(5, (index) => Future.wait([
-          dataSource.saveThemeMode(index % 2 == 0 ? ThemeMode.light : ThemeMode.dark),
-          dataSource.saveGridViewPreference(index % 2 == 0),
-          dataSource.saveSubtitlesEnabled(index % 2 == 1),
-        ]));
+        final futures = List.generate(
+            5,
+            (index) => Future.wait([
+                  dataSource.saveThemeMode(
+                      index % 2 == 0 ? ThemeMode.light : ThemeMode.dark),
+                  dataSource.saveGridViewPreference(index % 2 == 0),
+                  dataSource.saveSubtitlesEnabled(index % 2 == 1),
+                ]));
 
         await Future.wait(futures);
 

@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/domain/usecases/get_videos.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_event.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_state.dart';
-import 'package:awesome_video_player/data/datasources/video_local_data_source.dart'; // For PermissionDeniedException
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/domain/usecases/get_videos.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_event.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_state.dart';
+import 'package:lumeo/data/datasources/video_local_data_source.dart'; // For PermissionDeniedException
 
 // Manual mock for GetVideos UseCase
 class MockGetVideos extends Mock implements GetVideos {}

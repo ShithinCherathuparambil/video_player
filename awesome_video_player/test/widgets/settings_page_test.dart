@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bloc_test/bloc_test.dart';
-import 'package:awesome_video_player/presentation/screens/settings_page.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart';
+import 'package:lumeo/presentation/screens/settings_page.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_state.dart';
 import '../helpers/test_helpers.dart';
 import '../helpers/mock_factories.dart';
 

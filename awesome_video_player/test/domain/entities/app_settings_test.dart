@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:awesome_video_player/domain/entities/app_settings.dart';
+import 'package:lumeo/domain/entities/app_settings.dart';
 import '../../helpers/test_data_builders.dart';
 
 void main() {
@@ -66,62 +66,52 @@ void main() {
       });
 
       test('should not be equal when theme modes are different', () {
-        final appSettings1 = AppSettingsBuilder()
-            .withThemeMode(ThemeMode.light)
-            .build();
+        final appSettings1 =
+            AppSettingsBuilder().withThemeMode(ThemeMode.light).build();
 
-        final appSettings2 = AppSettingsBuilder()
-            .withThemeMode(ThemeMode.dark)
-            .build();
+        final appSettings2 =
+            AppSettingsBuilder().withThemeMode(ThemeMode.dark).build();
 
         expect(appSettings1, isNot(equals(appSettings2)));
         expect(appSettings1.hashCode, isNot(equals(appSettings2.hashCode)));
       });
 
       test('should not be equal when grid view preferences are different', () {
-        final appSettings1 = AppSettingsBuilder()
-            .withGridView(true)
-            .build();
+        final appSettings1 = AppSettingsBuilder().withGridView(true).build();
 
-        final appSettings2 = AppSettingsBuilder()
-            .withGridView(false)
-            .build();
+        final appSettings2 = AppSettingsBuilder().withGridView(false).build();
 
         expect(appSettings1, isNot(equals(appSettings2)));
       });
 
       test('should not be equal when subtitle preferences are different', () {
-        final appSettings1 = AppSettingsBuilder()
-            .withSubtitlesEnabled(true)
-            .build();
+        final appSettings1 =
+            AppSettingsBuilder().withSubtitlesEnabled(true).build();
 
-        final appSettings2 = AppSettingsBuilder()
-            .withSubtitlesEnabled(false)
-            .build();
+        final appSettings2 =
+            AppSettingsBuilder().withSubtitlesEnabled(false).build();
 
         expect(appSettings1, isNot(equals(appSettings2)));
       });
 
       test('should not be equal when video decoder settings are different', () {
-        final appSettings1 = AppSettingsBuilder()
-            .withVideoDecoder('auto')
-            .build();
+        final appSettings1 =
+            AppSettingsBuilder().withVideoDecoder('auto').build();
 
-        final appSettings2 = AppSettingsBuilder()
-            .withVideoDecoder('software')
-            .build();
+        final appSettings2 =
+            AppSettingsBuilder().withVideoDecoder('software').build();
 
         expect(appSettings1, isNot(equals(appSettings2)));
       });
 
-      test('should not be equal when hardware acceleration settings are different', () {
-        final appSettings1 = AppSettingsBuilder()
-            .withHardwareAcceleration(true)
-            .build();
+      test(
+          'should not be equal when hardware acceleration settings are different',
+          () {
+        final appSettings1 =
+            AppSettingsBuilder().withHardwareAcceleration(true).build();
 
-        final appSettings2 = AppSettingsBuilder()
-            .withHardwareAcceleration(false)
-            .build();
+        final appSettings2 =
+            AppSettingsBuilder().withHardwareAcceleration(false).build();
 
         expect(appSettings1, isNot(equals(appSettings2)));
       });
@@ -134,9 +124,11 @@ void main() {
         expect(copiedAppSettings, equals(testAppSettings));
         expect(copiedAppSettings.themeMode, testAppSettings.themeMode);
         expect(copiedAppSettings.isGridView, testAppSettings.isGridView);
-        expect(copiedAppSettings.subtitlesEnabled, testAppSettings.subtitlesEnabled);
+        expect(copiedAppSettings.subtitlesEnabled,
+            testAppSettings.subtitlesEnabled);
         expect(copiedAppSettings.videoDecoder, testAppSettings.videoDecoder);
-        expect(copiedAppSettings.hardwareAcceleration, testAppSettings.hardwareAcceleration);
+        expect(copiedAppSettings.hardwareAcceleration,
+            testAppSettings.hardwareAcceleration);
       });
 
       test('should update only theme mode', () {
@@ -149,9 +141,11 @@ void main() {
         expect(copiedAppSettings.themeMode, newThemeMode);
         // Other properties should remain the same
         expect(copiedAppSettings.isGridView, testAppSettings.isGridView);
-        expect(copiedAppSettings.subtitlesEnabled, testAppSettings.subtitlesEnabled);
+        expect(copiedAppSettings.subtitlesEnabled,
+            testAppSettings.subtitlesEnabled);
         expect(copiedAppSettings.videoDecoder, testAppSettings.videoDecoder);
-        expect(copiedAppSettings.hardwareAcceleration, testAppSettings.hardwareAcceleration);
+        expect(copiedAppSettings.hardwareAcceleration,
+            testAppSettings.hardwareAcceleration);
       });
 
       test('should update only grid view preference', () {
@@ -164,9 +158,11 @@ void main() {
         expect(copiedAppSettings.isGridView, newIsGridView);
         // Other properties should remain the same
         expect(copiedAppSettings.themeMode, testAppSettings.themeMode);
-        expect(copiedAppSettings.subtitlesEnabled, testAppSettings.subtitlesEnabled);
+        expect(copiedAppSettings.subtitlesEnabled,
+            testAppSettings.subtitlesEnabled);
         expect(copiedAppSettings.videoDecoder, testAppSettings.videoDecoder);
-        expect(copiedAppSettings.hardwareAcceleration, testAppSettings.hardwareAcceleration);
+        expect(copiedAppSettings.hardwareAcceleration,
+            testAppSettings.hardwareAcceleration);
       });
 
       test('should update multiple properties', () {
@@ -185,7 +181,8 @@ void main() {
         expect(copiedAppSettings.videoDecoder, newVideoDecoder);
         // Unchanged properties
         expect(copiedAppSettings.isGridView, testAppSettings.isGridView);
-        expect(copiedAppSettings.hardwareAcceleration, testAppSettings.hardwareAcceleration);
+        expect(copiedAppSettings.hardwareAcceleration,
+            testAppSettings.hardwareAcceleration);
       });
 
       test('should update all properties', () {
@@ -213,41 +210,31 @@ void main() {
 
     group('Builder Pattern Tests', () {
       test('should build with light theme', () {
-        final appSettings = AppSettingsBuilder()
-            .asLightTheme()
-            .build();
+        final appSettings = AppSettingsBuilder().asLightTheme().build();
 
         expect(appSettings.themeMode, ThemeMode.light);
       });
 
       test('should build with dark theme', () {
-        final appSettings = AppSettingsBuilder()
-            .asDarkTheme()
-            .build();
+        final appSettings = AppSettingsBuilder().asDarkTheme().build();
 
         expect(appSettings.themeMode, ThemeMode.dark);
       });
 
       test('should build with system theme', () {
-        final appSettings = AppSettingsBuilder()
-            .asSystemTheme()
-            .build();
+        final appSettings = AppSettingsBuilder().asSystemTheme().build();
 
         expect(appSettings.themeMode, ThemeMode.system);
       });
 
       test('should build with list view', () {
-        final appSettings = AppSettingsBuilder()
-            .withListView()
-            .build();
+        final appSettings = AppSettingsBuilder().withListView().build();
 
         expect(appSettings.isGridView, false);
       });
 
       test('should build with grid view enabled', () {
-        final appSettings = AppSettingsBuilder()
-            .withGridViewEnabled()
-            .build();
+        final appSettings = AppSettingsBuilder().withGridViewEnabled().build();
 
         expect(appSettings.isGridView, true);
       });
@@ -265,7 +252,8 @@ void main() {
       });
 
       test('should handle view mode preferences correctly', () {
-        final gridViewSettings = AppSettingsBuilder().withGridViewEnabled().build();
+        final gridViewSettings =
+            AppSettingsBuilder().withGridViewEnabled().build();
         final listViewSettings = AppSettingsBuilder().withListView().build();
 
         expect(gridViewSettings.isGridView, true);
@@ -273,27 +261,22 @@ void main() {
       });
 
       test('should handle subtitle preferences correctly', () {
-        final subtitlesEnabledSettings = AppSettingsBuilder()
-            .withSubtitlesEnabled(true)
-            .build();
-        final subtitlesDisabledSettings = AppSettingsBuilder()
-            .withSubtitlesEnabled(false)
-            .build();
+        final subtitlesEnabledSettings =
+            AppSettingsBuilder().withSubtitlesEnabled(true).build();
+        final subtitlesDisabledSettings =
+            AppSettingsBuilder().withSubtitlesEnabled(false).build();
 
         expect(subtitlesEnabledSettings.subtitlesEnabled, true);
         expect(subtitlesDisabledSettings.subtitlesEnabled, false);
       });
 
       test('should handle video decoder preferences correctly', () {
-        final autoDecoderSettings = AppSettingsBuilder()
-            .withVideoDecoder('auto')
-            .build();
-        final hardwareDecoderSettings = AppSettingsBuilder()
-            .withVideoDecoder('hardware')
-            .build();
-        final softwareDecoderSettings = AppSettingsBuilder()
-            .withVideoDecoder('software')
-            .build();
+        final autoDecoderSettings =
+            AppSettingsBuilder().withVideoDecoder('auto').build();
+        final hardwareDecoderSettings =
+            AppSettingsBuilder().withVideoDecoder('hardware').build();
+        final softwareDecoderSettings =
+            AppSettingsBuilder().withVideoDecoder('software').build();
 
         expect(autoDecoderSettings.videoDecoder, 'auto');
         expect(hardwareDecoderSettings.videoDecoder, 'hardware');
@@ -301,15 +284,14 @@ void main() {
       });
 
       test('should handle hardware acceleration preferences correctly', () {
-        final hardwareAccelerationEnabledSettings = AppSettingsBuilder()
-            .withHardwareAcceleration(true)
-            .build();
-        final hardwareAccelerationDisabledSettings = AppSettingsBuilder()
-            .withHardwareAcceleration(false)
-            .build();
+        final hardwareAccelerationEnabledSettings =
+            AppSettingsBuilder().withHardwareAcceleration(true).build();
+        final hardwareAccelerationDisabledSettings =
+            AppSettingsBuilder().withHardwareAcceleration(false).build();
 
         expect(hardwareAccelerationEnabledSettings.hardwareAcceleration, true);
-        expect(hardwareAccelerationDisabledSettings.hardwareAcceleration, false);
+        expect(
+            hardwareAccelerationDisabledSettings.hardwareAcceleration, false);
       });
     });
 

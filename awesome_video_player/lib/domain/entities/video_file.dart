@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
 
 enum VideoStatus {
   new_,
@@ -13,6 +14,7 @@ class VideoFile {
   final String path;
   final String name; // Extracted from path or provided separately
   final String? thumbnailPath;
+  final Uint8List? thumbnailBytes;
   final Duration? duration;
   final int? fileSize;
   final DateTime? dateAdded;
@@ -25,6 +27,7 @@ class VideoFile {
     required this.path,
     required this.name,
     this.thumbnailPath,
+    this.thumbnailBytes,
     this.duration,
     this.fileSize,
     this.dateAdded,
@@ -60,6 +63,7 @@ class VideoFile {
     String? path,
     String? name,
     String? thumbnailPath,
+    Uint8List? thumbnailBytes,
     Duration? duration,
     int? fileSize,
     DateTime? dateAdded,
@@ -72,6 +76,7 @@ class VideoFile {
       path: path ?? this.path,
       name: name ?? this.name,
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
+      thumbnailBytes: thumbnailBytes ?? this.thumbnailBytes,
       duration: duration ?? this.duration,
       fileSize: fileSize ?? this.fileSize,
       dateAdded: dateAdded ?? this.dateAdded,

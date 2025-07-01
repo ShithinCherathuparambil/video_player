@@ -1,12 +1,12 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:awesome_video_player/domain/entities/video_file.dart';
-import 'package:awesome_video_player/domain/usecases/get_videos.dart';
-import 'package:awesome_video_player/data/datasources/video_local_data_source.dart'; // For Impl and PermissionDeniedException
-import 'package:awesome_video_player/data/repositories/video_repository_impl.dart';
-import 'package:awesome_video_player/core/security/path_validator.dart';
+import 'package:lumeo/domain/entities/video_file.dart';
+import 'package:lumeo/domain/usecases/get_videos.dart';
+import 'package:lumeo/data/datasources/video_local_data_source.dart'; // For Impl and PermissionDeniedException
+import 'package:lumeo/data/repositories/video_repository_impl.dart';
+import 'package:lumeo/core/security/path_validator.dart';
 import './video_list_event.dart';
 import './video_list_state.dart';
-import 'package:awesome_video_player/domain/repositories/video_repository.dart';
+import 'package:lumeo/domain/repositories/video_repository.dart';
 import 'package:get_it/get_it.dart';
 
 class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {

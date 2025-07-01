@@ -1,4 +1,4 @@
-import 'package:awesome_video_player/domain/repositories/settings_repository.dart';
+import 'package:lumeo/domain/repositories/settings_repository.dart';
 
 class GetSubtitlesEnabled {
   final SettingsRepository repository;

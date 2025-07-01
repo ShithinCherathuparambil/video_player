@@ -2,10 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:flutter/material.dart'; // For ThemeMode
-import 'package:awesome_video_player/domain/entities/app_settings.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_event.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart';
+import 'package:lumeo/domain/entities/app_settings.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_event.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_state.dart';
 import '../../../helpers/mock_factories.dart';
 
 void main() {

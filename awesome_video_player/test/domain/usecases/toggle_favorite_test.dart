@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:awesome_video_player/domain/repositories/video_repository.dart';
-import 'package:awesome_video_player/domain/usecases/toggle_favorite.dart';
+import 'package:lumeo/domain/repositories/video_repository.dart';
+import 'package:lumeo/domain/usecases/toggle_favorite.dart';
 import '../../helpers/mock_factories.dart';
 import '../../helpers/test_constants.dart';
 

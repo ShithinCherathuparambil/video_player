@@ -1,10 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 // SharedPreferences import is no longer directly needed here for DI
-import 'package:awesome_video_player/domain/entities/app_settings.dart';
-import 'package:awesome_video_player/domain/usecases/get_theme_settings.dart';
-import 'package:awesome_video_player/domain/usecases/save_theme_settings.dart';
-import 'package:awesome_video_player/data/datasources/settings_local_data_source.dart';
-import 'package:awesome_video_player/data/repositories/settings_repository_impl.dart';
+import 'package:lumeo/domain/entities/app_settings.dart';
+import 'package:lumeo/domain/usecases/get_theme_settings.dart';
+import 'package:lumeo/domain/usecases/save_theme_settings.dart';
+import 'package:lumeo/data/datasources/settings_local_data_source.dart';
+import 'package:lumeo/data/repositories/settings_repository_impl.dart';
 import './theme_event.dart';
 import './theme_state.dart';
 import 'package:flutter/material.dart'; // For ThemeMode

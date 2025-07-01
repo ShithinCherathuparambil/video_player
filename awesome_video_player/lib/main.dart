@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_event.dart';
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_state.dart';
-import 'package:awesome_video_player/presentation/blocs/video_list_bloc/video_list_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/last_played_bloc/last_played_bloc.dart';
-import 'package:awesome_video_player/presentation/blocs/favorites_bloc/favorites_bloc.dart';
-import 'package:awesome_video_player/presentation/theme/app_themes.dart';
-import 'package:awesome_video_player/presentation/screens/splash_screen.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_event.dart';
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_state.dart';
+import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
+import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_bloc.dart';
+import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
+import 'package:lumeo/presentation/theme/app_themes.dart';
+import 'package:lumeo/presentation/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

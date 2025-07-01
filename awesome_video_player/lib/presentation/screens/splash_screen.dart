@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart'; // For BlocProvider if needed by VideoListPage
-import 'package:awesome_video_player/presentation/screens/video_list_page.dart';
+import 'package:lumeo/presentation/screens/video_list_page.dart';
 // Import ThemeBloc if VideoListPage or its descendants expect it directly from SplashScreen's context,
 // though it's typically provided higher in main.dart or in test setups.
-import 'package:awesome_video_player/presentation/blocs/theme_bloc/theme_bloc.dart';
-
+import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,7 +22,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
     // Timer for navigation
     Timer(const Duration(seconds: 3), () {
-      if (mounted) { // Check if the widget is still in the tree
+      if (mounted) {
+        // Check if the widget is still in the tree
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const VideoListPage()),
         );
