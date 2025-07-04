@@ -158,6 +158,53 @@ class VideoRepositoryImpl implements VideoRepository {
     }
   }
 
+  @override
+  Future<void> deleteVideo(String videoPath) async {
+    try {
+      debugPrint('VideoRepositoryImpl: Starting deletion of video: $videoPath');
+
+      // Delete the video file from storage
+      await localDataSource.deleteVideo(videoPath);
+      debugPrint(
+          'VideoRepositoryImpl: Successfully deleted video file from storage');
+
+      // Remove video metadata from secure storage
+      final metadataString =
+          await SecureStorage.getSecureString(_videoMetadataKey);
+      if (metadataString != null) {
+        debugPrint('VideoRepositoryImpl: Found metadata, removing video entry');
+        Map<String, dynamic> allMetadata =
+            json.decode(metadataString) as Map<String, dynamic>;
+
+        // Remove the video's metadata
+        final removed = allMetadata.remove(videoPath);
+        debugPrint('VideoRepositoryImpl: Metadata removed: $removed');
+
+        // Save updated metadata
+        await SecureStorage.setSecureString(
+            _videoMetadataKey, json.encode(allMetadata));
+        debugPrint('VideoRepositoryImpl: Updated metadata saved');
+
+        // Update cache
+        _metadataCache = allMetadata;
+      } else {
+        debugPrint('VideoRepositoryImpl: No metadata found to remove');
+      }
+
+      // Clear video cache to force refresh
+      _cachedVideos = null;
+      debugPrint('VideoRepositoryImpl: Video cache cleared');
+    } catch (e) {
+      // Log error in debug mode only
+      debugPrint('VideoRepositoryImpl: Error deleting video: $e');
+      assert(() {
+        debugPrint('Error deleting video: $e');
+        return true;
+      }());
+      rethrow;
+    }
+  }
+
   Future<List<VideoFile>> _loadVideoMetadata(List<VideoFile> videos) async {
     try {
       // Use cached metadata if available

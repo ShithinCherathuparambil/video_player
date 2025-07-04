@@ -8,10 +8,12 @@ import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:video_player/video_player.dart';
 import 'package:path/path.dart' as path;
 import 'package:photo_manager/photo_manager.dart';
+import 'package:lumeo/core/services/permission_service.dart';
 
 abstract class VideoLocalDataSource {
   Future<List<VideoFile>> getVideos();
   Future<void> requestPermissions();
+  Future<void> deleteVideo(String videoPath);
 }
 
 // Custom exception for permission issues
@@ -92,7 +94,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
           final isValid =
               file != null ? PathValidator.isValidVideoPath(file.path) : false;
           assert(() {
-            debugPrint('PathValidator.isValidVideoPath: \\${isValid}');
+            debugPrint('PathValidator.isValidVideoPath: \\$isValid');
             return true;
           }());
           if (file != null && (Platform.isIOS || isValid)) {
@@ -103,8 +105,8 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
             if (videos.length < 10) {
               if (Platform.isIOS) {
                 // Use photo_manager's built-in thumbnail for iOS
-                thumbnailBytes =
-                    await entity.thumbnailDataWithSize(ThumbnailSize(120, 120));
+                thumbnailBytes = await entity
+                    .thumbnailDataWithSize(const ThumbnailSize(120, 120));
                 duration = await _extractVideoDuration(file.path);
               } else {
                 // Android: generate thumbnail file as before
@@ -273,5 +275,158 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
       }
     }
     return true; // For non-mobile platforms
+  }
+
+  @override
+  Future<void> deleteVideo(String videoPath) async {
+    try {
+      debugPrint(
+          'VideoLocalDataSource: Starting deletion of video: $videoPath');
+
+      // Validate the path for security
+      if (!PathValidator.isValidVideoPath(videoPath)) {
+        throw Exception('Invalid video path: $videoPath');
+      }
+      debugPrint('VideoLocalDataSource: Path validation passed');
+
+      // For Android 10+ (API 29+), we should use MediaStore for all deletions
+      // This is the proper way to handle scoped storage
+      debugPrint(
+          'VideoLocalDataSource: Using MediaStore deletion for scoped storage compliance');
+      await _deleteViaMediaStore(videoPath);
+
+      // Also try to delete associated thumbnail if it exists
+      final thumbnailPath = await _getThumbnailPath(videoPath);
+      if (thumbnailPath != null) {
+        final thumbnailFile = File(thumbnailPath);
+        final thumbnailExists = await thumbnailFile.exists();
+        debugPrint(
+            'VideoLocalDataSource: Thumbnail exists: $thumbnailExists at $thumbnailPath');
+        if (thumbnailExists) {
+          try {
+            await thumbnailFile.delete();
+            debugPrint('VideoLocalDataSource: Thumbnail deleted successfully');
+          } catch (e) {
+            debugPrint('VideoLocalDataSource: Failed to delete thumbnail: $e');
+            // Don't fail the whole operation if thumbnail deletion fails
+          }
+        }
+      }
+
+      debugPrint(
+          'VideoLocalDataSource: Successfully completed video deletion: $videoPath');
+    } catch (e) {
+      debugPrint('VideoLocalDataSource: Error deleting video: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _deleteViaMediaStore(String videoPath) async {
+    try {
+      debugPrint(
+          'VideoLocalDataSource: Starting MediaStore deletion for: $videoPath');
+
+      // First, ensure we have the necessary permissions using permission service
+      final permissionService = PermissionService.instance;
+      final hasPermission = await permissionService.requestStoragePermissions();
+
+      if (!hasPermission) {
+        final permissionState = await permissionService.getPermissionState();
+        final message =
+            permissionService.getPermissionStatusMessage(permissionState);
+        throw Exception(
+            '$message Please grant storage access in app settings to delete videos.');
+      }
+
+      debugPrint(
+          'VideoLocalDataSource: Storage permissions granted successfully');
+
+      debugPrint(
+          'VideoLocalDataSource: Permission granted, searching for asset...');
+
+      // Find the asset by path using photo_manager
+      final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
+        type: RequestType.video,
+        hasAll: true,
+      );
+
+      AssetEntity? targetAsset;
+      int totalAssetsChecked = 0;
+
+      for (final path in paths) {
+        debugPrint('VideoLocalDataSource: Checking path: ${path.name}');
+        final assetCount = await path.assetCountAsync;
+        debugPrint('VideoLocalDataSource: Path has $assetCount assets');
+
+        final List<AssetEntity> assets = await path.getAssetListRange(
+          start: 0,
+          end: assetCount,
+        );
+
+        for (final asset in assets) {
+          totalAssetsChecked++;
+          final file = await asset.file;
+          if (file != null && file.path == videoPath) {
+            targetAsset = asset;
+            debugPrint(
+                'VideoLocalDataSource: Found matching asset: ${asset.id}');
+            break;
+          }
+        }
+        if (targetAsset != null) break;
+      }
+
+      debugPrint(
+          'VideoLocalDataSource: Checked $totalAssetsChecked total assets');
+
+      if (targetAsset != null) {
+        debugPrint(
+            'VideoLocalDataSource: Found asset for MediaStore deletion: ${targetAsset.id}');
+
+        // Use photo_manager to delete the asset (this handles MediaStore properly)
+        final List<String> result =
+            await PhotoManager.editor.deleteWithIds([targetAsset.id]);
+
+        if (result.isNotEmpty && result.contains(targetAsset.id)) {
+          debugPrint(
+              'VideoLocalDataSource: Video deleted successfully via MediaStore');
+        } else {
+          throw Exception(
+              'MediaStore deletion failed - video may be protected or in use');
+        }
+      } else {
+        // If we can't find the asset in MediaStore, it might be a file that's not indexed
+        // Try direct file deletion as a last resort
+        debugPrint(
+            'VideoLocalDataSource: Asset not found in MediaStore, trying direct deletion...');
+        final file = File(videoPath);
+        if (await file.exists()) {
+          try {
+            await file.delete();
+            debugPrint('VideoLocalDataSource: Direct deletion successful');
+          } catch (e) {
+            throw Exception(
+                'Cannot delete this video file. It may be in a protected location or currently in use. Error: ${e.toString()}');
+          }
+        } else {
+          throw Exception('Video file not found at path: $videoPath');
+        }
+      }
+    } catch (e) {
+      debugPrint('VideoLocalDataSource: MediaStore deletion failed: $e');
+      rethrow;
+    }
+  }
+
+  Future<String?> _getThumbnailPath(String videoPath) async {
+    try {
+      final cacheDir = await getTemporaryDirectory();
+      final videoName = path.basenameWithoutExtension(videoPath);
+      final thumbnailPath =
+          path.join(cacheDir.path, '${videoName}_thumbnail.jpg');
+      return thumbnailPath;
+    } catch (e) {
+      return null;
+    }
   }
 }

@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:async';
 import 'package:lumeo/domain/entities/video_file.dart';
 import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
 import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_event.dart';
 import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_state.dart';
 import 'package:lumeo/presentation/screens/video_player_page.dart';
-import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_bloc.dart';
-import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_event.dart';
-import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
-import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_event.dart';
+import 'package:lumeo/presentation/widgets/delete_confirmation_dialog.dart';
 import 'dart:io';
-import 'package:intl/intl.dart';
 
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});
@@ -160,9 +157,40 @@ class _FavoritesPageState extends State<FavoritesPage> {
                             ),
                         ],
                       ),
-                      trailing: Icon(
-                        Icons.favorite,
-                        color: Colors.red,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Delete button
+                          GestureDetector(
+                            onTap: () =>
+                                _showDeleteConfirmation(context, video),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade600,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withValues(alpha: 0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.delete_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Favorite icon
+                          const Icon(
+                            Icons.favorite,
+                            color: Colors.red,
+                          ),
+                        ],
                       ),
                       onTap: () {
                         Navigator.push(
@@ -214,35 +242,35 @@ class _FavoritesPageState extends State<FavoritesPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.error_outline,
                     size: 64,
                     color: Colors.red,
                   ),
-                  SizedBox(height: 16),
-                  Text(
+                  const SizedBox(height: 16),
+                  const Text(
                     'Error loading favorites',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     state.message,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.grey,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
                       context
                           .read<FavoritesBloc>()
                           .add(const RefreshFavorites());
                     },
-                    child: Text('Retry'),
+                    child: const Text('Retry'),
                   ),
                 ],
               ),
@@ -268,5 +296,76 @@ class _FavoritesPageState extends State<FavoritesPage> {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  void _showDeleteConfirmation(BuildContext context, VideoFile video) {
+    debugPrint('FavoritesPage: Showing delete confirmation for: ${video.name}');
+    final bloc = context.read<FavoritesBloc>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    DeleteConfirmationDialog.show(
+      context: context,
+      videoName: video.name,
+    ).then((result) {
+      debugPrint('FavoritesPage: Delete confirmation result: $result');
+      if (result == true && mounted) {
+        debugPrint(
+            'FavoritesPage: User confirmed deletion, dispatching DeleteFavoriteVideo event');
+
+        // Listen for the result of the deletion
+        late StreamSubscription subscription;
+        subscription = bloc.stream.listen((state) {
+          if (mounted) {
+            if (state is FavoritesLoaded) {
+              // Check if the video was successfully removed from the favorites list
+              final videoStillExists =
+                  state.favorites.any((v) => v.path == video.path);
+              if (!videoStillExists) {
+                // Video was successfully deleted
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('${video.name} deleted successfully'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                subscription.cancel();
+              }
+            } else if (state is FavoritesEmpty) {
+              // All favorites were deleted
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text('${video.name} deleted successfully'),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+              subscription.cancel();
+            } else if (state is FavoritesError) {
+              // Show error message
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+              subscription.cancel();
+            }
+          }
+        });
+
+        // Cancel subscription after a reasonable time to prevent memory leaks
+        Future.delayed(const Duration(seconds: 10), () {
+          subscription.cancel();
+        });
+
+        // User confirmed deletion
+        bloc.add(DeleteFavoriteVideo(video.path));
+      } else {
+        debugPrint(
+            'FavoritesPage: User cancelled deletion or widget not mounted');
+      }
+    });
   }
 }

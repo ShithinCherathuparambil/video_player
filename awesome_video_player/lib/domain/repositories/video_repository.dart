@@ -21,5 +21,10 @@ abstract class VideoRepository {
   /// Throws an exception if an error occurs during fetching (e.g., permission issues, network errors if applicable).
   Future<List<VideoFile>> getFavoriteVideos();
 
+  /// Deletes a video file from the device storage.
+  ///
+  /// Throws an exception if deletion fails (e.g., permission issues, file not found).
+  Future<void> deleteVideo(String videoPath);
+
   // Future<VideoFile> getVideoDetails(String videoId); // Example for future extension
 }

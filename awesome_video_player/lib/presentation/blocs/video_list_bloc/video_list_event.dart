@@ -50,6 +50,31 @@ class ToggleFavorite extends VideoListEvent {
   List<Object?> get props => [videoPath];
 }
 
+class DeleteVideo extends VideoListEvent {
+  final String videoPath;
+
+  const DeleteVideo(this.videoPath);
+
+  @override
+  List<Object?> get props => [videoPath];
+}
+
+class RefreshFromFavorites extends VideoListEvent {
+  const RefreshFromFavorites();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class InstantRemoveFromList extends VideoListEvent {
+  final String videoPath;
+
+  const InstantRemoveFromList(this.videoPath);
+
+  @override
+  List<Object?> get props => [videoPath];
+}
+
 // Future: Add events like RefreshVideos, FilterVideos, etc.
 // class RefreshVideos extends VideoListEvent {}
 // class FilterVideos extends VideoListEvent {

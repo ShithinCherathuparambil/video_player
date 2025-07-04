@@ -9,6 +9,8 @@ import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
 import 'package:lumeo/presentation/theme/app_themes.dart';
 import 'package:lumeo/presentation/screens/splash_screen.dart';
 import 'package:lumeo/core/security/app_authentication_manager.dart';
+import 'package:lumeo/core/services/bloc_communication_service.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 // Global navigator key for overlay access
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -18,6 +20,13 @@ void main() async {
 
   // Initialize the authentication manager
   AppAuthenticationManager().initialize();
+
+  // Request storage permissions early
+  try {
+    await PhotoManager.requestPermissionExtend();
+  } catch (e) {
+    debugPrint('Failed to request permissions at startup: $e');
+  }
 
   runApp(const MyApp());
 }
@@ -34,6 +43,8 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     // Clean up the authentication manager when app is disposed
     AppAuthenticationManager().dispose();
+    // Clean up BLoC communication service
+    BlocCommunicationService.dispose();
     super.dispose();
   }
 
@@ -45,13 +56,21 @@ class _MyAppState extends State<MyApp> {
           create: (context) => ThemeBloc.create()..add(LoadTheme()),
         ),
         BlocProvider<VideoListBloc>(
-          create: (context) => VideoListBloc.create(),
+          create: (context) {
+            final bloc = VideoListBloc.create();
+            BlocCommunicationService.registerVideoListBloc(bloc);
+            return bloc;
+          },
         ),
         BlocProvider<LastPlayedBloc>(
           create: (context) => LastPlayedBloc.create(),
         ),
         BlocProvider<FavoritesBloc>(
-          create: (context) => FavoritesBloc.create(),
+          create: (context) {
+            final bloc = FavoritesBloc.create();
+            BlocCommunicationService.registerFavoritesBloc(bloc);
+            return bloc;
+          },
         ),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(

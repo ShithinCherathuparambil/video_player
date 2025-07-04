@@ -11,6 +11,7 @@ import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
 import 'package:lumeo/presentation/blocs/theme_bloc/theme_event.dart';
 import 'package:lumeo/presentation/blocs/theme_bloc/theme_state.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 import 'dart:io';
 import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_bloc.dart';
 import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_event.dart';
@@ -18,6 +19,8 @@ import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_state.dart
 import 'package:lumeo/data/datasources/video_local_data_source.dart';
 import 'package:lumeo/presentation/screens/favorites_page.dart';
 import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
+import 'package:lumeo/presentation/widgets/delete_confirmation_dialog.dart';
+import 'package:lumeo/core/services/bloc_communication_service.dart';
 
 class VideoListPage extends StatefulWidget {
   const VideoListPage({super.key});
@@ -182,7 +185,11 @@ class _VideoListPageState extends State<VideoListPage>
                 context,
                 MaterialPageRoute(
                   builder: (context) => BlocProvider(
-                    create: (context) => FavoritesBloc.create(),
+                    create: (context) {
+                      final bloc = FavoritesBloc.create();
+                      BlocCommunicationService.registerFavoritesBloc(bloc);
+                      return bloc;
+                    },
                     child: const FavoritesPage(),
                   ),
                 ),
@@ -705,11 +712,41 @@ class _VideoListPageState extends State<VideoListPage>
                   ],
                 ),
               ),
-              // Play icon
-              Icon(
-                Icons.play_circle_outline,
-                color: Theme.of(context).colorScheme.primary,
-                size: 32,
+              // Action buttons
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Delete button
+                  GestureDetector(
+                    onTap: () => _showDeleteConfirmation(context, video),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.delete_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Play icon
+                  Icon(
+                    Icons.play_circle_outline,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 32,
+                  ),
+                ],
               ),
             ],
           ),
@@ -850,6 +887,35 @@ class _VideoListPageState extends State<VideoListPage>
                           ),
                         ),
                       ),
+                    // Delete button
+                    Positioned(
+                      top: 8,
+                      right: video.duration != null
+                          ? 80
+                          : 8, // Adjust position based on duration indicator
+                      child: GestureDetector(
+                        onTap: () => _showDeleteConfirmation(context, video),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade600,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.red.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.delete_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ),
                     // Duration indicator
                     if (video.duration != null)
                       Positioned(
@@ -1050,5 +1116,66 @@ class _VideoListPageState extends State<VideoListPage>
     } else {
       return '${seconds}s';
     }
+  }
+
+  void _showDeleteConfirmation(BuildContext context, VideoFile video) {
+    debugPrint('VideoListPage: Showing delete confirmation for: ${video.name}');
+    final bloc = context.read<VideoListBloc>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    DeleteConfirmationDialog.show(
+      context: context,
+      videoName: video.name,
+    ).then((result) {
+      debugPrint('VideoListPage: Delete confirmation result: $result');
+      if (result == true && mounted) {
+        debugPrint(
+            'VideoListPage: User confirmed deletion, dispatching DeleteVideo event');
+
+        // Listen for the result of the deletion
+        late StreamSubscription subscription;
+        subscription = bloc.stream.listen((state) {
+          if (mounted) {
+            if (state is VideoListLoaded) {
+              // Check if the video was successfully removed from the list
+              final videoStillExists =
+                  state.videos.any((v) => v.path == video.path);
+              if (!videoStillExists) {
+                // Video was successfully deleted
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('${video.name} deleted successfully'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                subscription.cancel();
+              }
+            } else if (state is VideoListError) {
+              // Show error message
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+              subscription.cancel();
+            }
+          }
+        });
+
+        // Cancel subscription after a reasonable time to prevent memory leaks
+        Future.delayed(const Duration(seconds: 10), () {
+          subscription.cancel();
+        });
+
+        // User confirmed deletion
+        bloc.add(DeleteVideo(video.path));
+      } else {
+        debugPrint(
+            'VideoListPage: User cancelled deletion or widget not mounted');
+      }
+    });
   }
 }

@@ -1,13 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lumeo/domain/entities/video_file.dart';
 import 'package:lumeo/domain/usecases/get_videos.dart';
 import 'package:lumeo/data/datasources/video_local_data_source.dart'; // For Impl and PermissionDeniedException
 import 'package:lumeo/data/repositories/video_repository_impl.dart';
 import 'package:lumeo/core/security/path_validator.dart';
+import 'package:lumeo/core/services/bloc_communication_service.dart';
 import './video_list_event.dart';
 import './video_list_state.dart';
-import 'package:lumeo/domain/repositories/video_repository.dart';
-import 'package:get_it/get_it.dart';
 
 class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
   final GetVideos getVideos;
@@ -19,9 +19,12 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
     on<SearchVideos>(_onSearchVideos);
     on<UpdateVideoStatus>(_onUpdateVideoStatus);
     on<ToggleFavorite>(_onToggleFavorite);
+    on<DeleteVideo>(_onDeleteVideo);
+    on<RefreshFromFavorites>(_onRefreshFromFavorites);
+    on<InstantRemoveFromList>(_onInstantRemoveFromList);
 
     // Automatically load videos when BLoC is created
-    add(LoadVideos());
+    add(const LoadVideos());
   }
 
   Future<void> _onLoadVideos(
@@ -107,8 +110,6 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
     }
 
     if (videoIndex != -1) {
-      final oldStatus = _allVideos[videoIndex].status;
-
       // If setting to "lastWatched", clear "lastWatched" from all other videos
       if (event.newStatus == VideoStatus.lastWatched) {
         for (int i = 0; i < _allVideos.length; i++) {
@@ -190,6 +191,112 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
       }
     } catch (e) {
       // Handle error silently
+    }
+  }
+
+  Future<void> _onDeleteVideo(
+      DeleteVideo event, Emitter<VideoListState> emit) async {
+    try {
+      debugPrint(
+          'VideoListBloc: Attempting to delete video: ${event.videoPath}');
+
+      // Find the video to delete
+      final videoIndex =
+          _allVideos.indexWhere((v) => v.path == event.videoPath);
+      if (videoIndex == -1) {
+        debugPrint(
+            'VideoListBloc: Video not found in list: ${event.videoPath}');
+        return;
+      }
+
+      debugPrint('VideoListBloc: Found video at index $videoIndex');
+
+      // Delete from repository (this will delete the file and metadata)
+      await getVideos.repository.deleteVideo(event.videoPath);
+      debugPrint('VideoListBloc: Successfully deleted video from repository');
+
+      // Remove from local list
+      _allVideos.removeAt(videoIndex);
+      debugPrint(
+          'VideoListBloc: Removed video from local list, new count: ${_allVideos.length}');
+
+      // Emit updated state immediately
+      final newState = VideoListLoaded(List<VideoFile>.from(_allVideos));
+      emit(newState);
+      debugPrint(
+          'VideoListBloc: Emitted new state with ${_allVideos.length} videos');
+
+      // Clear repository cache to ensure other screens get updated data
+      final repo = getVideos.repository;
+      if (repo is VideoRepositoryImpl) {
+        await repo.refreshCache();
+      }
+
+      // Instantly notify favorites bloc to remove this video
+      BlocCommunicationService.notifyFavoritesOfDeletion(event.videoPath);
+    } catch (e) {
+      // Handle error - emit an error state with user-friendly message
+      debugPrint('VideoListBloc: Error deleting video: $e');
+
+      String errorMessage = 'Failed to delete video';
+      if (e.toString().contains('Storage permission denied')) {
+        errorMessage =
+            'Storage permission required to delete videos. Please grant permission and try again.';
+      } else if (e.toString().contains('protected location') ||
+          e.toString().contains('currently in use')) {
+        errorMessage =
+            'Cannot delete this video - it may be protected or currently in use.';
+      } else if (e.toString().contains('MediaStore deletion failed')) {
+        errorMessage =
+            'Unable to delete video from device storage. The file may be protected.';
+      } else if (e.toString().contains('Permission denied')) {
+        errorMessage = 'Permission denied. Cannot delete this video file.';
+      } else if (e.toString().contains('not found')) {
+        errorMessage = 'Video file not found.';
+      }
+
+      emit(VideoListError(errorMessage));
+
+      // After showing error, go back to loaded state
+      Future.delayed(const Duration(seconds: 3), () {
+        if (!emit.isDone) {
+          emit(VideoListLoaded(List<VideoFile>.from(_allVideos)));
+        }
+      });
+    }
+  }
+
+  Future<void> _onRefreshFromFavorites(
+      RefreshFromFavorites event, Emitter<VideoListState> emit) async {
+    debugPrint('VideoListBloc: Refreshing from favorites deletion');
+
+    // Clear cache and reload videos
+    final repo = getVideos.repository;
+    if (repo is VideoRepositoryImpl) {
+      await repo.refreshCache();
+    }
+
+    // Force reload videos
+    _isInitialized = false;
+    add(const LoadVideos(forceRefresh: true));
+  }
+
+  Future<void> _onInstantRemoveFromList(
+      InstantRemoveFromList event, Emitter<VideoListState> emit) async {
+    debugPrint('VideoListBloc: Instantly removing video: ${event.videoPath}');
+
+    // Find and remove the video from local list
+    final videoIndex = _allVideos.indexWhere((v) => v.path == event.videoPath);
+    if (videoIndex != -1) {
+      _allVideos.removeAt(videoIndex);
+      debugPrint(
+          'VideoListBloc: Instantly removed video from list, new count: ${_allVideos.length}');
+
+      // Emit updated state immediately
+      final newState = VideoListLoaded(List<VideoFile>.from(_allVideos));
+      emit(newState);
+      debugPrint(
+          'VideoListBloc: Instantly emitted new state with ${_allVideos.length} videos');
     }
   }
 

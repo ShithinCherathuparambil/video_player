@@ -23,3 +23,28 @@ class ToggleFavoriteEvent extends FavoritesEvent {
 class RefreshFavorites extends FavoritesEvent {
   const RefreshFavorites();
 }
+
+class DeleteFavoriteVideo extends FavoritesEvent {
+  final String videoPath;
+
+  const DeleteFavoriteVideo(this.videoPath);
+
+  @override
+  List<Object?> get props => [videoPath];
+}
+
+class RefreshFromVideoList extends FavoritesEvent {
+  const RefreshFromVideoList();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class InstantRemoveFromFavorites extends FavoritesEvent {
+  final String videoPath;
+
+  const InstantRemoveFromFavorites(this.videoPath);
+
+  @override
+  List<Object?> get props => [videoPath];
+}
