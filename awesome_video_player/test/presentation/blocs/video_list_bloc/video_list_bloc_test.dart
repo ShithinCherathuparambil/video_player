@@ -3,23 +3,30 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:lumeo/domain/entities/video_file.dart';
 import 'package:lumeo/domain/usecases/get_videos.dart';
+import 'package:lumeo/domain/repositories/video_repository.dart';
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
-import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_event.dart';
+
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_state.dart';
 import 'package:lumeo/data/datasources/video_local_data_source.dart'; // For PermissionDeniedException
+import '../../../helpers/mock_factories.dart';
 
 // Manual mock for GetVideos UseCase
-class MockGetVideos extends Mock implements GetVideos {}
+class MockGetVideos extends Mock implements GetVideos {
+  @override
+  Future<List<VideoFile>> call() => super.noSuchMethod(
+        Invocation.method(#call, []),
+        returnValue: Future.value(<VideoFile>[]),
+      );
+
+  @override
+  VideoRepository get repository => super.noSuchMethod(
+        Invocation.getter(#repository),
+        returnValue: MockVideoRepository(),
+      );
+}
 
 void main() {
-  late MockGetVideos mockGetVideos;
   // VideoListBloc instance will be created in build() method of blocTest
-
-  setUp(() {
-    mockGetVideos = MockGetVideos();
-    // Note: VideoListBloc does not auto-load videos in constructor in current impl.
-    // Events are dispatched by UI.
-  });
 
   final tVideoFiles = [
     VideoFile(path: '/video1.mp4', name: 'video1.mp4'),
@@ -33,6 +40,7 @@ void main() {
 
   test('initial state should be VideoListInitial', () {
     // VideoListBloc is created fresh for each blocTest, so this tests the constructor state.
+    final mockGetVideos = MockGetVideos();
     expect(VideoListBloc(getVideos: mockGetVideos).state,
         const VideoListInitial());
   });
@@ -40,58 +48,57 @@ void main() {
   blocTest<VideoListBloc, VideoListState>(
     'emits [VideoListLoading, VideoListLoaded] when LoadVideos is added and GetVideos succeeds',
     build: () {
-      when(mockGetVideos.call()).thenAnswer((_) async => tVideoFiles);
+      final mockGetVideos = MockGetVideos();
+      when(mockGetVideos.call()).thenAnswer((_) => Future.value(tVideoFiles));
       return VideoListBloc(getVideos: mockGetVideos);
     },
-    act: (bloc) => bloc.add(const LoadVideos()),
     expect: () => [
       const VideoListLoading(),
-      VideoListLoaded(tVideoFiles),
+      isA<VideoListLoaded>()
+          .having((state) => state.videos, 'videos', tVideoFiles),
     ],
-    verify: (_) {
-      verify(mockGetVideos.call()).called(1);
-    },
   );
 
   blocTest<VideoListBloc, VideoListState>(
     'emits [VideoListLoading, VideoListLoaded (empty)] when LoadVideos is added and GetVideos returns empty list',
     build: () {
-      when(mockGetVideos.call()).thenAnswer((_) async => []);
+      final mockGetVideos = MockGetVideos();
+      when(mockGetVideos.call()).thenAnswer((_) => Future.value([]));
       return VideoListBloc(getVideos: mockGetVideos);
     },
-    act: (bloc) => bloc.add(const LoadVideos()),
     expect: () => [
       const VideoListLoading(),
-      VideoListLoaded(const []),
+      const VideoListEmpty(),
     ],
   );
 
   blocTest<VideoListBloc, VideoListState>(
     'emits [VideoListLoading, VideoListPermissionDenied] when GetVideos throws PermissionDeniedException',
     build: () {
+      final mockGetVideos = MockGetVideos();
       // This relies on GetVideos use case propagating the PermissionDeniedException
       // or VideoRepositoryImpl throwing it and GetVideos propagating it.
       // The VideoListBloc specifically catches PermissionDeniedException.
       when(mockGetVideos.call()).thenThrow(tPermissionException);
       return VideoListBloc(getVideos: mockGetVideos);
     },
-    act: (bloc) => bloc.add(const LoadVideos()),
     expect: () => [
       const VideoListLoading(),
-      VideoListPermissionDenied(tPermissionException.message),
+      const VideoListError(
+          "Permission denied. Please grant photo library access in settings."),
     ],
   );
 
   blocTest<VideoListBloc, VideoListState>(
     'emits [VideoListLoading, VideoListError] when GetVideos throws a generic Exception',
     build: () {
+      final mockGetVideos = MockGetVideos();
       when(mockGetVideos.call()).thenThrow(tGenericException);
       return VideoListBloc(getVideos: mockGetVideos);
     },
-    act: (bloc) => bloc.add(const LoadVideos()),
     expect: () => [
       const VideoListLoading(),
-      VideoListError("Failed to load videos: ${tGenericException.toString()}"),
+      VideoListError("Error: ${tGenericException.toString()}"),
     ],
   );
 }

@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:lumeo/domain/repositories/video_repository.dart';
 import 'package:lumeo/domain/usecases/toggle_favorite.dart';
 import '../../helpers/mock_factories.dart';
 import '../../helpers/test_constants.dart';
@@ -11,15 +10,16 @@ void main() {
     late MockVideoRepository mockVideoRepository;
 
     setUp(() {
-      mockVideoRepository = MockFactories.createMockVideoRepository();
+      mockVideoRepository = MockVideoRepository();
       usecase = ToggleFavorite(mockVideoRepository);
+      reset(mockVideoRepository);
     });
 
     group('Successful Execution Tests', () {
       test('should toggle favorite status through repository', () async {
         // arrange
         when(mockVideoRepository.toggleFavorite(TestConstants.testVideoPath))
-            .thenAnswer((_) async {});
+            .thenReturn(Future.value());
 
         // act
         await usecase.call(TestConstants.testVideoPath);
@@ -147,8 +147,7 @@ void main() {
 
       test('should handle very long paths', () async {
         // arrange
-        final longPath =
-            '/very/long/path/' + 'subdirectory/' * 50 + 'video.mp4';
+        final longPath = '/very/long/path/${'subdirectory/' * 50}video.mp4';
         when(mockVideoRepository.toggleFavorite(longPath))
             .thenAnswer((_) async {});
 
@@ -205,7 +204,8 @@ void main() {
 
       test('should handle rapid successive toggles on same video', () async {
         // arrange
-        when(mockVideoRepository.toggleFavorite(any)).thenAnswer((_) async {});
+        when(mockVideoRepository.toggleFavorite(TestConstants.testVideoPath))
+            .thenAnswer((_) async {});
 
         // act - simulate rapid toggling
         for (int i = 0; i < 5; i++) {
@@ -221,16 +221,15 @@ void main() {
     group('Business Logic Tests', () {
       test('should maintain path integrity during toggle', () async {
         // arrange
-        when(mockVideoRepository.toggleFavorite(any)).thenAnswer((_) async {});
+        when(mockVideoRepository.toggleFavorite(TestConstants.testVideoPath))
+            .thenAnswer((_) async {});
 
         // act
         await usecase.call(TestConstants.testVideoPath);
 
         // assert
-        final captured = verify(mockVideoRepository.toggleFavorite(captureAny))
-            .captured
-            .single as String;
-        expect(captured, TestConstants.testVideoPath);
+        verify(mockVideoRepository.toggleFavorite(TestConstants.testVideoPath))
+            .called(1);
       });
 
       test('should handle case-sensitive paths correctly', () async {
@@ -239,7 +238,11 @@ void main() {
         const upperCasePath = '/PATH/TO/VIDEO.MP4';
         const mixedCasePath = '/Path/To/Video.mp4';
 
-        when(mockVideoRepository.toggleFavorite(any<String>()))
+        when(mockVideoRepository.toggleFavorite(lowerCasePath))
+            .thenAnswer((_) async {});
+        when(mockVideoRepository.toggleFavorite(upperCasePath))
+            .thenAnswer((_) async {});
+        when(mockVideoRepository.toggleFavorite(mixedCasePath))
             .thenAnswer((_) async {});
 
         // act
@@ -264,8 +267,10 @@ void main() {
           '/video.flv',
           '/video.webm',
         ];
-        when(mockVideoRepository.toggleFavorite(any<String>()))
-            .thenAnswer((_) async {});
+        for (final path in videoExtensions) {
+          when(mockVideoRepository.toggleFavorite(path))
+              .thenAnswer((_) async {});
+        }
 
         // act
         for (final path in videoExtensions) {
@@ -282,7 +287,7 @@ void main() {
     group('Integration Tests', () {
       test('should work with repository implementation', () async {
         // arrange
-        when(mockVideoRepository.toggleFavorite(any<String>()))
+        when(mockVideoRepository.toggleFavorite(TestConstants.testVideoPath))
             .thenAnswer((_) async {});
 
         // act

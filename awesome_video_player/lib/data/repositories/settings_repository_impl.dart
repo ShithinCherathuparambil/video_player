@@ -13,6 +13,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
     final themeMode = await localDataSource.getThemeMode();
     final isGridView = await localDataSource.getGridViewPreference();
     final subtitlesEnabled = await localDataSource.getSubtitlesEnabled();
+    final authenticationEnabled =
+        await localDataSource.getAuthenticationEnabled();
     // final languageCode = await localDataSource.getLanguageCode(); // Example
     // final notificationsEnabled = await localDataSource.getNotificationsEnabled(); // Example
 
@@ -21,6 +23,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
       themeMode: themeMode,
       isGridView: isGridView,
       subtitlesEnabled: subtitlesEnabled,
+      authenticationEnabled: authenticationEnabled,
       // languageCode: languageCode,
       // notificationsEnabled: notificationsEnabled,
     );
@@ -34,6 +37,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       await localDataSource.saveGridViewPreference(settings.isGridView!);
     }
     await localDataSource.saveSubtitlesEnabled(settings.subtitlesEnabled);
+    await localDataSource
+        .saveAuthenticationEnabled(settings.authenticationEnabled);
     // await localDataSource.saveLanguageCode(settings.languageCode); // Example
     // await localDataSource.saveNotificationsEnabled(settings.notificationsEnabled); // Example
   }

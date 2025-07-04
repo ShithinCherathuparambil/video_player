@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:flutter/material.dart';
+import 'package:lumeo/domain/entities/app_settings.dart';
 import 'package:lumeo/domain/usecases/save_subtitles_enabled.dart';
 import '../../helpers/mock_factories.dart';
 import '../../helpers/test_data_builders.dart';
@@ -93,7 +95,8 @@ void main() {
 
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => initialSettings);
-        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(isA<AppSettings>()))
+            .thenAnswer((_) async {});
 
         // act - toggle multiple times
         await usecase.call(true);
@@ -102,7 +105,8 @@ void main() {
 
         // assert
         verify(mockSettingsRepository.getSettings()).called(3);
-        verify(mockSettingsRepository.saveSettings(any)).called(3);
+        verify(mockSettingsRepository.saveSettings(argThat(isA<AppSettings>())))
+            .called(3);
       });
     });
 
@@ -115,7 +119,8 @@ void main() {
         // act & assert
         expect(() => usecase.call(true), throwsA(exception));
         verify(mockSettingsRepository.getSettings()).called(1);
-        verifyNever(mockSettingsRepository.saveSettings(any));
+        verifyNever(
+            mockSettingsRepository.saveSettings(argThat(isA<AppSettings>())));
       });
 
       test('should propagate save settings exceptions', () async {
@@ -171,7 +176,7 @@ void main() {
         // assert
         final captured = verify(mockSettingsRepository.saveSettings(captureAny))
             .captured
-            .single;
+            .single as AppSettings;
 
         expect(captured.themeMode, ThemeMode.system);
         expect(captured.isGridView, true);
@@ -198,7 +203,7 @@ void main() {
         // assert
         final captured = verify(mockSettingsRepository.saveSettings(captureAny))
             .captured
-            .single;
+            .single as AppSettings;
 
         expect(captured.themeMode, ThemeMode.light);
         expect(captured.isGridView, null);
@@ -261,7 +266,7 @@ void main() {
         // assert
         final captured = verify(mockSettingsRepository.saveSettings(captureAny))
             .captured
-            .single;
+            .single as AppSettings;
         expect(captured.subtitlesEnabled, true);
       });
 
@@ -280,7 +285,7 @@ void main() {
         // assert
         final captured = verify(mockSettingsRepository.saveSettings(captureAny))
             .captured
-            .single;
+            .single as AppSettings;
         expect(captured.subtitlesEnabled, true);
         verify(mockSettingsRepository.getSettings()).called(1);
         verify(mockSettingsRepository.saveSettings(any)).called(1);

@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:lumeo/domain/entities/video_file.dart';
-import 'package:lumeo/domain/repositories/video_repository.dart';
 import 'package:lumeo/domain/usecases/get_favorite_videos.dart';
 import '../../helpers/mock_factories.dart';
 import '../../helpers/test_data_builders.dart';
@@ -152,7 +151,7 @@ void main() {
             .withDateAdded(DateTime(2023, 5, 10))
             .withLastPlayedPosition(const Duration(minutes: 20))
             .withLastPlayedAt(DateTime(2023, 5, 15))
-            .withStatus(VideoStatus.partiallyWatched)
+            .withStatus(VideoStatus.watching)
             .asFavorite()
             .build();
 
@@ -173,7 +172,7 @@ void main() {
         expect(returnedVideo.dateAdded, DateTime(2023, 5, 10));
         expect(returnedVideo.lastPlayedPosition, const Duration(minutes: 20));
         expect(returnedVideo.lastPlayedAt, DateTime(2023, 5, 15));
-        expect(returnedVideo.status, VideoStatus.partiallyWatched);
+        expect(returnedVideo.status, VideoStatus.watched);
         expect(returnedVideo.isFavorite, true);
       });
 
@@ -187,7 +186,7 @@ void main() {
               .build(),
           VideoFileBuilder()
               .withPath('/partial_favorite.mp4')
-              .withStatus(VideoStatus.partiallyWatched)
+              .withStatus(VideoStatus.watching)
               .asFavorite()
               .build(),
           VideoFileBuilder()
@@ -207,7 +206,7 @@ void main() {
         expect(result.length, 3);
         expect(result.every((video) => video.isFavorite), true);
         expect(result[0].status, VideoStatus.new_);
-        expect(result[1].status, VideoStatus.partiallyWatched);
+        expect(result[1].status, VideoStatus.watching);
         expect(result[2].status, VideoStatus.watched);
       });
 

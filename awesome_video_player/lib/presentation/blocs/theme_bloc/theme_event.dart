@@ -54,3 +54,12 @@ class ToggleHardwareAcceleration extends ThemeEvent {
   @override
   List<Object?> get props => [hardwareAcceleration];
 }
+
+class ToggleAuthentication extends ThemeEvent {
+  final bool authenticationEnabled;
+
+  const ToggleAuthentication(this.authenticationEnabled);
+
+  @override
+  List<Object?> get props => [authenticationEnabled];
+}

@@ -45,7 +45,19 @@ class MockSaveThemeSettings extends Mock implements SaveThemeSettings {}
 // Mock classes for repositories
 class MockVideoRepository extends Mock implements VideoRepository {}
 
-class MockSettingsRepository extends Mock implements SettingsRepository {}
+class MockSettingsRepository extends Mock implements SettingsRepository {
+  @override
+  Future<AppSettings> getSettings() => super.noSuchMethod(
+        Invocation.method(#getSettings, []),
+        returnValue: Future.value(AppSettings(themeMode: ThemeMode.system)),
+      );
+
+  @override
+  Future<void> saveSettings(AppSettings settings) => super.noSuchMethod(
+        Invocation.method(#saveSettings, [settings]),
+        returnValue: Future<void>.value(),
+      );
+}
 
 // Mock classes for data sources
 class MockVideoLocalDataSource extends Mock implements VideoLocalDataSource {}

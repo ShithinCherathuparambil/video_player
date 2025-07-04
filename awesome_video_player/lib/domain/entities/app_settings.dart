@@ -7,6 +7,7 @@ class AppSettings {
   final bool subtitlesEnabled;
   final String videoDecoder; // Add video decoder setting
   final bool hardwareAcceleration; // Add hardware acceleration setting
+  final bool authenticationEnabled; // Add authentication setting
   // Add other app-specific settings here in the future
   // final String languageCode;
   // final bool notificationsEnabled;
@@ -17,6 +18,7 @@ class AppSettings {
     this.subtitlesEnabled = true, // Default to enabled
     this.videoDecoder = 'auto', // Default to auto
     this.hardwareAcceleration = true, // Default to enabled
+    this.authenticationEnabled = false, // Default to disabled
     // this.languageCode = 'en', // Default language
     // this.notificationsEnabled = true, // Default notification setting
   });
@@ -28,6 +30,7 @@ class AppSettings {
     bool? subtitlesEnabled,
     String? videoDecoder,
     bool? hardwareAcceleration,
+    bool? authenticationEnabled,
     // String? languageCode,
     // bool? notificationsEnabled,
   }) {
@@ -37,6 +40,8 @@ class AppSettings {
       subtitlesEnabled: subtitlesEnabled ?? this.subtitlesEnabled,
       videoDecoder: videoDecoder ?? this.videoDecoder,
       hardwareAcceleration: hardwareAcceleration ?? this.hardwareAcceleration,
+      authenticationEnabled:
+          authenticationEnabled ?? this.authenticationEnabled,
       // languageCode: languageCode ?? this.languageCode,
       // notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
     );
@@ -52,7 +57,8 @@ class AppSettings {
           isGridView == other.isGridView &&
           subtitlesEnabled == other.subtitlesEnabled &&
           videoDecoder == other.videoDecoder &&
-          hardwareAcceleration == other.hardwareAcceleration;
+          hardwareAcceleration == other.hardwareAcceleration &&
+          authenticationEnabled == other.authenticationEnabled;
   // && languageCode == other.languageCode
   // && notificationsEnabled == other.notificationsEnabled;
 
@@ -62,7 +68,8 @@ class AppSettings {
       isGridView.hashCode ^
       subtitlesEnabled.hashCode ^
       videoDecoder.hashCode ^
-      hardwareAcceleration.hashCode;
+      hardwareAcceleration.hashCode ^
+      authenticationEnabled.hashCode;
   // ^ languageCode.hashCode
   // ^ notificationsEnabled.hashCode;
 }

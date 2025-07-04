@@ -8,15 +8,34 @@ import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_bloc.dart'
 import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
 import 'package:lumeo/presentation/theme/app_themes.dart';
 import 'package:lumeo/presentation/screens/splash_screen.dart';
+import 'package:lumeo/core/security/app_authentication_manager.dart';
+
+// Global navigator key for overlay access
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize the authentication manager
+  AppAuthenticationManager().initialize();
+
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void dispose() {
+    // Clean up the authentication manager when app is disposed
+    AppAuthenticationManager().dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +57,7 @@ class MyApp extends StatelessWidget {
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, themeState) {
           return MaterialApp(
+            navigatorKey: navigatorKey,
             title: 'Awesome Video Player',
             theme: AppThemes.lightTheme,
             darkTheme: AppThemes.darkTheme,

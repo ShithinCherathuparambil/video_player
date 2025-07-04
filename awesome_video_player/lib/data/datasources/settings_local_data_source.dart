@@ -8,6 +8,8 @@ abstract class SettingsLocalDataSource {
   Future<void> saveGridViewPreference(bool isGridView);
   Future<bool> getSubtitlesEnabled();
   Future<void> saveSubtitlesEnabled(bool enabled);
+  Future<bool> getAuthenticationEnabled();
+  Future<void> saveAuthenticationEnabled(bool enabled);
 }
 
 class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
@@ -17,6 +19,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   static const String _themeModeKey = 'theme_mode';
   static const String _gridViewKey = 'grid_view_preference';
   static const String _subtitlesKey = 'subtitles_enabled';
+  static const String _authenticationKey = 'authentication_enabled';
 
   // Constructor no longer requires SharedPreferences
   SettingsLocalDataSourceImpl();
@@ -65,5 +68,17 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   Future<void> saveSubtitlesEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_subtitlesKey, enabled);
+  }
+
+  @override
+  Future<bool> getAuthenticationEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_authenticationKey) ?? false; // Default to disabled
+  }
+
+  @override
+  Future<void> saveAuthenticationEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_authenticationKey, enabled);
   }
 }

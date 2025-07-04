@@ -19,6 +19,7 @@ class ThemeLoaded extends ThemeState {
   final bool subtitlesEnabled;
   final String videoDecoder;
   final bool hardwareAcceleration;
+  final bool authenticationEnabled;
 
   const ThemeLoaded({
     required this.themeMode,
@@ -26,6 +27,7 @@ class ThemeLoaded extends ThemeState {
     this.subtitlesEnabled = false, // Default to subtitles disabled
     this.videoDecoder = 'auto', // Default to auto
     this.hardwareAcceleration = true, // Default to enabled
+    this.authenticationEnabled = false, // Default to disabled
   });
 
   @override
@@ -34,7 +36,8 @@ class ThemeLoaded extends ThemeState {
         isGridView,
         subtitlesEnabled,
         videoDecoder,
-        hardwareAcceleration
+        hardwareAcceleration,
+        authenticationEnabled,
       ];
 }
 

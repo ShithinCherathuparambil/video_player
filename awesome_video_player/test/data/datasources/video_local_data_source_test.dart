@@ -373,7 +373,7 @@ void main() {
         when(mockEntity.type).thenReturn(AssetType.video);
         when(mockEntity.file).thenAnswer((_) async => mockFile);
         when(mockEntity.title).thenReturn('My iOS Video');
-        when(mockEntity.thumbnailDataWithSize(any))
+        when(mockEntity.thumbnailDataWithSize(ThumbnailSize(120, 120)))
             .thenAnswer((Invocation inv) async => fakeBytes);
         when(mockEntity.createDateTime).thenReturn(DateTime.now());
 

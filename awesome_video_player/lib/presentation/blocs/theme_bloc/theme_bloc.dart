@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lumeo/domain/entities/app_settings.dart';
 import 'package:lumeo/domain/usecases/get_theme_settings.dart';
 import 'package:lumeo/domain/usecases/save_theme_settings.dart';
+import 'package:lumeo/domain/usecases/toggle_authentication.dart'
+    as auth_usecase;
+import 'package:lumeo/core/security/authentication_service.dart';
 import 'package:lumeo/data/datasources/settings_local_data_source.dart';
 import 'package:lumeo/data/repositories/settings_repository_impl.dart';
 import './theme_event.dart';
@@ -12,10 +15,12 @@ import 'package:flutter/material.dart'; // For ThemeMode
 class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
   final GetThemeSettings getThemeSettings;
   final SaveThemeSettings saveThemeSettings;
+  final auth_usecase.ToggleAuthentication toggleAuthentication;
 
   ThemeBloc({
     required this.getThemeSettings,
     required this.saveThemeSettings,
+    required this.toggleAuthentication,
   }) : super(ThemeInitial()) {
     on<LoadTheme>(_onLoadTheme);
     on<ChangeTheme>(_onChangeTheme);
@@ -23,6 +28,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
     on<ToggleSubtitles>(_onToggleSubtitles);
     on<SetVideoDecoder>(_onSetVideoDecoder);
     on<ToggleHardwareAcceleration>(_onToggleHardwareAcceleration);
+    on<ToggleAuthentication>(_onToggleAuthentication);
 
     add(LoadTheme());
   }
@@ -37,6 +43,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         subtitlesEnabled: appSettings.subtitlesEnabled,
         videoDecoder: appSettings.videoDecoder,
         hardwareAcceleration: appSettings.hardwareAcceleration,
+        authenticationEnabled: appSettings.authenticationEnabled,
       ));
     } catch (e) {
       emit(ThemeError("Failed to load theme: ${e.toString()}"));
@@ -47,6 +54,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         subtitlesEnabled: false,
         videoDecoder: 'auto',
         hardwareAcceleration: true,
+        authenticationEnabled: false,
       )); // Default to system on error
     }
   }
@@ -64,6 +72,9 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
       final hardwareAcceleration = currentState is ThemeLoaded
           ? currentState.hardwareAcceleration
           : true;
+      final authenticationEnabled = currentState is ThemeLoaded
+          ? currentState.authenticationEnabled
+          : false;
 
       final newAppSettings = AppSettings(
         themeMode: event.themeMode,
@@ -71,6 +82,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         subtitlesEnabled: subtitlesEnabled,
         videoDecoder: videoDecoder,
         hardwareAcceleration: hardwareAcceleration,
+        authenticationEnabled: authenticationEnabled,
       );
       await saveThemeSettings.call(newAppSettings);
       emit(ThemeLoaded(
@@ -79,6 +91,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         subtitlesEnabled: subtitlesEnabled,
         videoDecoder: videoDecoder,
         hardwareAcceleration: hardwareAcceleration,
+        authenticationEnabled: authenticationEnabled,
       ));
     } catch (e) {
       emit(ThemeError("Failed to save theme: ${e.toString()}"));
@@ -96,6 +109,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
           subtitlesEnabled: currentState.subtitlesEnabled,
           videoDecoder: currentState.videoDecoder,
           hardwareAcceleration: currentState.hardwareAcceleration,
+          authenticationEnabled: currentState.authenticationEnabled,
         );
         await saveThemeSettings.call(newAppSettings);
         emit(ThemeLoaded(
@@ -104,6 +118,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
           subtitlesEnabled: currentState.subtitlesEnabled,
           videoDecoder: currentState.videoDecoder,
           hardwareAcceleration: currentState.hardwareAcceleration,
+          authenticationEnabled: currentState.authenticationEnabled,
         ));
       }
     } catch (e) {
@@ -122,6 +137,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
           subtitlesEnabled: event.subtitlesEnabled,
           videoDecoder: currentState.videoDecoder,
           hardwareAcceleration: currentState.hardwareAcceleration,
+          authenticationEnabled: currentState.authenticationEnabled,
         );
         await saveThemeSettings.call(newAppSettings);
         emit(ThemeLoaded(
@@ -130,6 +146,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
           subtitlesEnabled: event.subtitlesEnabled,
           videoDecoder: currentState.videoDecoder,
           hardwareAcceleration: currentState.hardwareAcceleration,
+          authenticationEnabled: currentState.authenticationEnabled,
         ));
       }
     } catch (e) {
@@ -148,6 +165,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
           subtitlesEnabled: currentState.subtitlesEnabled,
           videoDecoder: event.videoDecoder,
           hardwareAcceleration: currentState.hardwareAcceleration,
+          authenticationEnabled: currentState.authenticationEnabled,
         );
         await saveThemeSettings.call(newAppSettings);
         emit(ThemeLoaded(
@@ -156,6 +174,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
           subtitlesEnabled: currentState.subtitlesEnabled,
           videoDecoder: event.videoDecoder,
           hardwareAcceleration: currentState.hardwareAcceleration,
+          authenticationEnabled: currentState.authenticationEnabled,
         ));
       }
     } catch (e) {
@@ -175,6 +194,7 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
           subtitlesEnabled: currentState.subtitlesEnabled,
           videoDecoder: currentState.videoDecoder,
           hardwareAcceleration: event.hardwareAcceleration,
+          authenticationEnabled: currentState.authenticationEnabled,
         );
         await saveThemeSettings.call(newAppSettings);
         emit(ThemeLoaded(
@@ -183,11 +203,42 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
           subtitlesEnabled: currentState.subtitlesEnabled,
           videoDecoder: currentState.videoDecoder,
           hardwareAcceleration: event.hardwareAcceleration,
+          authenticationEnabled: currentState.authenticationEnabled,
         ));
       }
     } catch (e) {
       emit(ThemeError(
           "Failed to save hardware acceleration preference: ${e.toString()}"));
+    }
+  }
+
+  Future<void> _onToggleAuthentication(
+      ToggleAuthentication event, Emitter<ThemeState> emit) async {
+    try {
+      final result =
+          await toggleAuthentication.call(event.authenticationEnabled);
+
+      if (result.isSuccess) {
+        final currentState = state;
+        if (currentState is ThemeLoaded) {
+          emit(ThemeLoaded(
+            themeMode: currentState.themeMode,
+            isGridView: currentState.isGridView,
+            subtitlesEnabled: currentState.subtitlesEnabled,
+            videoDecoder: currentState.videoDecoder,
+            hardwareAcceleration: currentState.hardwareAcceleration,
+            authenticationEnabled: result.newValue!,
+          ));
+        }
+      } else {
+        emit(ThemeError("Authentication toggle failed: ${result.message}"));
+        // Restore the previous state after showing error
+        if (state is ThemeLoaded) {
+          emit(state as ThemeLoaded);
+        }
+      }
+    } catch (e) {
+      emit(ThemeError("Failed to toggle authentication: ${e.toString()}"));
     }
   }
 
@@ -200,9 +251,15 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         SettingsRepositoryImpl(localDataSource: settingsLocalDataSource);
     final getThemeSettingsUseCase = GetThemeSettings(settingsRepository);
     final saveThemeSettingsUseCase = SaveThemeSettings(settingsRepository);
+    final authenticationService = AuthenticationService();
+    final toggleAuthenticationUseCase = auth_usecase.ToggleAuthentication(
+      settingsRepository,
+      authenticationService,
+    );
 
     return ThemeBloc(
         getThemeSettings: getThemeSettingsUseCase,
-        saveThemeSettings: saveThemeSettingsUseCase);
+        saveThemeSettings: saveThemeSettingsUseCase,
+        toggleAuthentication: toggleAuthenticationUseCase);
   }
 }

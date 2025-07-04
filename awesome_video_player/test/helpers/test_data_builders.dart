@@ -113,6 +113,7 @@ class AppSettingsBuilder {
   bool _subtitlesEnabled = false;
   String _videoDecoder = 'auto';
   bool _hardwareAcceleration = true;
+  bool _authenticationEnabled = false;
 
   AppSettingsBuilder withThemeMode(ThemeMode themeMode) {
     _themeMode = themeMode;
@@ -136,6 +137,11 @@ class AppSettingsBuilder {
 
   AppSettingsBuilder withHardwareAcceleration(bool enabled) {
     _hardwareAcceleration = enabled;
+    return this;
+  }
+
+  AppSettingsBuilder withAuthenticationEnabled(bool enabled) {
+    _authenticationEnabled = enabled;
     return this;
   }
 
@@ -171,6 +177,7 @@ class AppSettingsBuilder {
       subtitlesEnabled: _subtitlesEnabled,
       videoDecoder: _videoDecoder,
       hardwareAcceleration: _hardwareAcceleration,
+      authenticationEnabled: _authenticationEnabled,
     );
   }
 }
