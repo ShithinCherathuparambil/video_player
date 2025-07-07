@@ -1,12 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Modify this file to customize your launch splash screen -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+    <!-- Gradient background matching the Flutter splash screen -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="#6A4C93"
+                android:centerColor="#E91E63"
+                android:endColor="#FFB347" />
+        </shape>
+    </item>
 
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+    <!-- Play button icon in the center -->
+    <item android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="#E6FFFFFF" />
+            <size android:width="120dp" android:height="120dp" />
+        </shape>
+    </item>
+
+    <!-- Play arrow icon -->
+    <item android:gravity="center">
+        <vector android:width="60dp" android:height="60dp" android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillColor="#6A4C93" android:pathData="M8,5v14l11,-7z"/>
+        </vector>
+    </item>
 </layer-list>

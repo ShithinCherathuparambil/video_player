@@ -37,11 +37,11 @@ void main() {
   });
 
   group('SplashScreen Widget Tests', () {
-    testWidgets('Displays initial UI elements (logo and text)',
+    testWidgets('Displays initial UI elements (play icon and text)',
         (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
 
-      expect(find.byType(FlutterLogo), findsOneWidget);
+      expect(find.byIcon(Icons.play_arrow), findsOneWidget);
       expect(find.text('Awesome Video Player'), findsOneWidget);
 
       final AnimatedOpacity animatedOpacity =

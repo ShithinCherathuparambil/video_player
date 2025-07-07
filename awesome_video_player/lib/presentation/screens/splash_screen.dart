@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:lumeo/core/extensions/extensions.dart';
 import 'package:lumeo/presentation/screens/video_list_page.dart';
 import 'package:lumeo/core/security/authentication_service.dart';
 import 'package:lumeo/domain/usecases/authenticate_user.dart';
@@ -51,7 +52,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _initializeApp() async {
     try {
       // Wait for minimum splash duration
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(const Duration(days: 2));
 
       if (!mounted) return;
 
@@ -203,31 +204,96 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: AnimatedOpacity(
-          opacity: _visible ? 1.0 : 0.0,
-          duration: const Duration(seconds: 2),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              const FlutterLogo(size: 100),
-              const SizedBox(height: 20),
-              const Text(
-                'Awesome Video Player',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 40),
-              if (_isAuthenticating)
-                const CircularProgressIndicator()
-              else
-                const SizedBox(height: 4),
-              const SizedBox(height: 16),
-              Text(
-                _statusMessage,
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF6A4C93), // Purple
+              Color(0xFF8E44AD), // Purple-Pink
+              Color(0xFFE91E63), // Pink
+              Color(0xFFFF6B35), // Orange-Red
+              Color(0xFFFFB347), // Orange-Yellow
             ],
+            stops: [0.0, 0.25, 0.5, 0.75, 1.0],
+          ),
+        ),
+        child: Center(
+          child: AnimatedOpacity(
+            opacity: _visible ? 1.0 : 0.0,
+            duration: const Duration(seconds: 2),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Custom play button icon with white color
+                // Container(
+                //   width: 120,
+                //   height: 120,
+                //   decoration: BoxDecoration(
+                //     color: Colors.white.withValues(alpha: 0.9),
+                //     shape: BoxShape.circle,
+                //     boxShadow: [
+                //       BoxShadow(
+                //         color: Colors.black.withValues(alpha: 0.2),
+                //         blurRadius: 20,
+                //         offset: const Offset(0, 10),
+                //       ),
+                //     ],
+                //   ),
+                //   child: const Icon(
+                //     Icons.play_arrow,
+                //     size: 60,
+                //     color: Color(0xFF6A4C93),
+                //   ),
+                // ),
+                Image.asset(
+                  'splash_logo'.toPng,
+                  height: 60,
+                  width: 60,
+                ),
+
+                const SizedBox(height: 30),
+                const Text(
+                  'Lumeo',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black26,
+                        offset: Offset(0, 2),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 50),
+                if (_isAuthenticating)
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  )
+                else
+                  const SizedBox(height: 4),
+                const SizedBox(height: 20),
+                Text(
+                  _statusMessage,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.white70,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black26,
+                        offset: Offset(0, 1),
+                        blurRadius: 2,
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ),

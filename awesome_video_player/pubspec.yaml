@@ -45,3 +45,13 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Assets configuration
+  assets:
+    # Images folder
+    - assets/images/
+    # Icons folder
+    - assets/icons/
+    # Other asset folders
+    - assets/data/
+    - assets/config/
