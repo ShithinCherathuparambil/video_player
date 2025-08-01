@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
 import 'package:lumeo/presentation/blocs/theme_bloc/theme_state.dart';
 import 'package:lumeo/presentation/blocs/theme_bloc/theme_event.dart';
+import 'package:lumeo/presentation/widgets/gradient_background.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -14,7 +15,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('Settings'),
       ),

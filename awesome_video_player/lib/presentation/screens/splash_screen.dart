@@ -8,6 +8,7 @@ import 'package:lumeo/domain/usecases/check_authentication_required.dart';
 import 'package:lumeo/data/repositories/settings_repository_impl.dart';
 import 'package:lumeo/data/datasources/settings_local_data_source.dart';
 import 'package:lumeo/core/security/app_authentication_manager.dart';
+import 'package:lumeo/presentation/theme/app_themes.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -52,7 +53,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _initializeApp() async {
     try {
       // Wait for minimum splash duration
-      await Future.delayed(const Duration(days: 2));
+      await Future.delayed(const Duration(seconds: 2));
 
       if (!mounted) return;
 
@@ -216,7 +217,7 @@ class _SplashScreenState extends State<SplashScreen> {
               Color(0xFFFF6B35), // Orange-Red
               Color(0xFFFFB347), // Orange-Yellow
             ],
-            stops: [0.0, 0.25, 0.5, 0.75, 1.0],
+            stops: [0.0, 0.2, 0.5, 0.9, 1.0],
           ),
         ),
         child: Center(
@@ -252,7 +253,6 @@ class _SplashScreenState extends State<SplashScreen> {
                   height: 60,
                   width: 60,
                 ),
-
                 const SizedBox(height: 30),
                 const Text(
                   'Lumeo',
@@ -272,18 +272,19 @@ class _SplashScreenState extends State<SplashScreen> {
                 const SizedBox(height: 50),
                 if (_isAuthenticating)
                   const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Color(0xFF6A4C93)),
                   )
                 else
                   const SizedBox(height: 4),
                 const SizedBox(height: 20),
                 Text(
                   _statusMessage,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    color: Colors.white70,
+                    color: const Color(0xFF6A4C93).withValues(alpha: 0.8),
                     shadows: [
-                      Shadow(
+                      const Shadow(
                         color: Colors.black26,
                         offset: Offset(0, 1),
                         blurRadius: 2,

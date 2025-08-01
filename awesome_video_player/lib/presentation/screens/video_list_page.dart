@@ -21,6 +21,7 @@ import 'package:lumeo/presentation/screens/favorites_page.dart';
 import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
 import 'package:lumeo/presentation/widgets/delete_confirmation_dialog.dart';
 import 'package:lumeo/core/services/bloc_communication_service.dart';
+import 'package:lumeo/presentation/widgets/gradient_background.dart';
 
 class VideoListPage extends StatefulWidget {
   const VideoListPage({super.key});
@@ -77,7 +78,7 @@ class _VideoListPageState extends State<VideoListPage>
       });
 
       // Load more videos - for now just reload all videos
-      context.read<VideoListBloc>().add(LoadVideos());
+      context.read<VideoListBloc>().add(const LoadVideos());
 
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
@@ -164,7 +165,7 @@ class _VideoListPageState extends State<VideoListPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GradientScaffold(
       appBar: AppBar(
         title: const Text('Video Library'),
         actions: [
