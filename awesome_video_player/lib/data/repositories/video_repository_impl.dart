@@ -5,32 +5,60 @@ import 'package:lumeo/domain/repositories/video_repository.dart';
 import 'package:lumeo/data/datasources/video_local_data_source.dart';
 import 'package:lumeo/core/security/secure_storage.dart';
 
+class _LoadMetadataParams {
+  final List<VideoFile> videos;
+  final Map<String, dynamic> metadata;
+
+  _LoadMetadataParams({required this.videos, required this.metadata});
+}
+
+List<VideoFile> _loadVideoMetadataBatch(_LoadMetadataParams params) {
+  final videos = params.videos;
+  final metadata = params.metadata;
+  return videos.map((video) {
+    if (metadata.containsKey(video.path)) {
+      final videoData = metadata[video.path] as Map<String, dynamic>;
+      return VideoFile.fromJson({...video.toJson(), ...videoData});
+    }
+    return video;
+  }).toList();
+}
+
 class VideoRepositoryImpl implements VideoRepository {
   final VideoLocalDataSource localDataSource;
   static const String _videoMetadataKey = 'video_metadata';
 
   // Cache for video metadata to avoid repeated SharedPreferences access
   Map<String, dynamic>? _metadataCache;
-  List<VideoFile>? _cachedVideos;
+
+  Future<Map<String, dynamic>> _getMetadataCache() async {
+    if (_metadataCache != null) return _metadataCache!;
+
+    final metadataString =
+        await SecureStorage.getSecureString(_videoMetadataKey);
+    if (metadataString != null) {
+      _metadataCache = json.decode(metadataString) as Map<String, dynamic>;
+    } else {
+      _metadataCache = {};
+    }
+    return _metadataCache!;
+  }
 
   VideoRepositoryImpl({required this.localDataSource});
 
   @override
-  Future<List<VideoFile>> getVideos() async {
+  Future<List<VideoFile>> getVideos({int page = 0, int pageSize = 20}) async {
     try {
-      // Return cached videos if available
-      if (_cachedVideos != null) {
-        return _cachedVideos!;
-      }
-
+      // Don't use cache for paged requests
       await localDataSource.requestPermissions();
-      final videos = await localDataSource.getVideos();
+      final videos =
+          await localDataSource.getVideos(page: page, pageSize: pageSize);
 
-      // Load metadata for each video
-      final videosWithMetadata = await _loadVideoMetadata(videos);
-
-      // Cache the result for future use
-      _cachedVideos = videosWithMetadata;
+      // Load metadata for each video asynchronously
+      final videosWithMetadata = await compute(
+          _loadVideoMetadataBatch,
+          _LoadMetadataParams(
+              videos: videos, metadata: await _getMetadataCache()));
 
       return videosWithMetadata;
     } catch (e) {
@@ -86,9 +114,8 @@ class VideoRepositoryImpl implements VideoRepository {
       await SecureStorage.setSecureString(
           _videoMetadataKey, json.encode(allMetadata));
 
-      // Update cache and clear video cache to ensure consistency
+      // Update cache to ensure consistency
       _metadataCache = allMetadata;
-      _cachedVideos = null;
     } catch (e) {
       // Log error in debug mode only
       assert(() {
@@ -130,9 +157,8 @@ class VideoRepositoryImpl implements VideoRepository {
       await SecureStorage.setSecureString(
           _videoMetadataKey, json.encode(allMetadata));
 
-      // Update cache and clear video cache to ensure consistency
+      // Update cache to ensure consistency
       _metadataCache = allMetadata;
-      _cachedVideos = null;
     } catch (e) {
       // Log error in debug mode only
       assert(() {
@@ -191,8 +217,6 @@ class VideoRepositoryImpl implements VideoRepository {
         debugPrint('VideoRepositoryImpl: No metadata found to remove');
       }
 
-      // Clear video cache to force refresh
-      _cachedVideos = null;
       debugPrint('VideoRepositoryImpl: Video cache cleared');
     } catch (e) {
       // Log error in debug mode only
@@ -205,54 +229,8 @@ class VideoRepositoryImpl implements VideoRepository {
     }
   }
 
-  Future<List<VideoFile>> _loadVideoMetadata(List<VideoFile> videos) async {
-    try {
-      // Use cached metadata if available
-      Map<String, dynamic> allMetadata;
-
-      if (_metadataCache != null) {
-        allMetadata = _metadataCache!;
-      } else {
-        final metadataString =
-            await SecureStorage.getSecureString(_videoMetadataKey);
-
-        if (metadataString == null) {
-          _metadataCache = {};
-          return videos;
-        }
-
-        allMetadata = json.decode(metadataString) as Map<String, dynamic>;
-        _metadataCache = allMetadata;
-      }
-
-      final List<VideoFile> videosWithMetadata = [];
-
-      for (final video in videos) {
-        final videoMetadata = allMetadata[video.path];
-        if (videoMetadata != null) {
-          // Merge metadata with video file
-          final metadataVideo = VideoFile.fromJson(videoMetadata);
-          videosWithMetadata.add(video.copyWith(
-            lastPlayedPosition: metadataVideo.lastPlayedPosition,
-            lastPlayedAt: metadataVideo.lastPlayedAt,
-            status: metadataVideo.status,
-            isFavorite: metadataVideo.isFavorite,
-          ));
-        } else {
-          videosWithMetadata.add(video);
-        }
-      }
-
-      return videosWithMetadata;
-    } catch (e) {
-      // If metadata loading fails, return original videos
-      return videos;
-    }
-  }
-
   // Method to automatically refresh cache
   Future<void> refreshCache() async {
-    _cachedVideos = null;
     _metadataCache = null;
     await getVideos(); // This will reload and cache everything
   }

@@ -18,17 +18,36 @@ class VideoListLoading extends VideoListState {
 
 class VideoListLoaded extends VideoListState {
   final List<VideoFile> videos;
-  final DateTime timestamp;
+  final bool hasMore;
+  final bool isLoadingMore;
 
-  VideoListLoaded(this.videos, {DateTime? timestamp})
-      : timestamp = timestamp ?? DateTime.now();
+  const VideoListLoaded(
+    this.videos, {
+    this.hasMore = false,
+    this.isLoadingMore = false,
+  });
 
   @override
-  List<Object> get props => [videos, timestamp];
+  List<Object> get props => [videos, hasMore, isLoadingMore];
+
+  VideoListLoaded copyWith({
+    List<VideoFile>? videos,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) {
+    return VideoListLoaded(
+      videos ?? this.videos,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
+  }
 }
 
 class VideoListEmpty extends VideoListState {
   const VideoListEmpty();
+
+  @override
+  List<Object> get props => [];
 }
 
 class VideoListError extends VideoListState {
@@ -40,7 +59,6 @@ class VideoListError extends VideoListState {
   List<Object> get props => [message];
 }
 
-// Specific state for permission denial, if granular handling is desired
 class VideoListPermissionDenied extends VideoListState {
   final String message;
 

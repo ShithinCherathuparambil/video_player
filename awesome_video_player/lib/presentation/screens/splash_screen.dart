@@ -8,7 +8,6 @@ import 'package:lumeo/domain/usecases/check_authentication_required.dart';
 import 'package:lumeo/data/repositories/settings_repository_impl.dart';
 import 'package:lumeo/data/datasources/settings_local_data_source.dart';
 import 'package:lumeo/core/security/app_authentication_manager.dart';
-import 'package:lumeo/presentation/theme/app_themes.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

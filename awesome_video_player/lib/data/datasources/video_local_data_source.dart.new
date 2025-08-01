@@ -29,7 +29,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
   final Directory? _directory;
   final Map<String, Uint8List> _thumbnailCache = {};
   final Map<String, Duration?> _durationCache = {};
-
+  
   VideoLocalDataSourceImpl({Directory? directory}) : _directory = directory;
 
   @override
@@ -46,8 +46,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
     }
   }
 
-  Future<List<VideoFile>> _getPlatformVideos(
-      {int page = 0, int pageSize = 20}) async {
+  Future<List<VideoFile>> _getPlatformVideos({int page = 0, int pageSize = 20}) async {
     final List<VideoFile> videos = [];
     final List<String> processedPaths = [];
 
@@ -55,7 +54,8 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
       final PermissionState ps = await PhotoManager.requestPermissionExtend();
       if (!ps.hasAccess) {
         throw PermissionDeniedException(
-            'Photo library permission not granted. Please grant permission in settings.');
+          'Photo library permission not granted. Please grant permission in settings.'
+        );
       }
 
       final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
@@ -85,8 +85,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
 
           if (processedPaths.contains(file.path)) continue;
 
-          final isValid =
-              Platform.isIOS || PathValidator.isValidVideoPath(file.path);
+          final isValid = Platform.isIOS || PathValidator.isValidVideoPath(file.path);
           if (!isValid) continue;
 
           String? thumbnailPath;
@@ -95,8 +94,8 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
 
           if (videos.length < 10) {
             if (Platform.isIOS) {
-              thumbnailBytes = await entity
-                  .thumbnailDataWithSize(const ThumbnailSize(120, 120));
+              thumbnailBytes = await entity.thumbnailDataWithSize(
+                const ThumbnailSize(120, 120));
               duration = await _getDuration(file.path);
             } else {
               thumbnailPath = await _generateThumbnail(file.path);
@@ -111,9 +110,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
 
           final videoFile = VideoFile(
             path: file.path,
-            name: Platform.isIOS &&
-                    entity.title != null &&
-                    entity.title!.isNotEmpty
+            name: Platform.isIOS && entity.title != null && entity.title!.isNotEmpty
                 ? entity.title!
                 : path.basename(file.path),
             thumbnailPath: thumbnailPath,
@@ -175,8 +172,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
       final existingThumb = File(thumbnailPath);
       if (await existingThumb.exists()) {
         final fileStats = await existingThumb.stat();
-        if (DateTime.now().difference(fileStats.modified) <
-            const Duration(hours: 24)) {
+        if (DateTime.now().difference(fileStats.modified) < const Duration(hours: 24)) {
           return thumbnailPath;
         }
         await existingThumb.delete();
@@ -205,7 +201,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
       final thumbnailDir = await getTemporaryDirectory();
       final entities = await thumbnailDir.list().toList();
       final now = DateTime.now();
-
+      
       for (var entity in entities) {
         if (entity is File && entity.path.contains('thumb_')) {
           final fileStats = await entity.stat();
@@ -219,8 +215,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
     }
   }
 
-  Future<List<VideoFile>> _getLocalVideos(
-      {int page = 0, int pageSize = 20}) async {
+  Future<List<VideoFile>> _getLocalVideos({int page = 0, int pageSize = 20}) async {
     final List<VideoFile> videos = [];
     final directory = _directory ?? await getApplicationDocumentsDirectory();
 
@@ -230,7 +225,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
         if (file is File && PathValidator.isValidVideoPath(file.path)) {
           final thumbnailPath = await _generateThumbnail(file.path);
           final duration = await _getDuration(file.path);
-
+          
           final videoFile = VideoFile(
             path: file.path,
             name: path.basename(file.path),
@@ -239,7 +234,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
             fileSize: await file.length(),
             dateAdded: await file.lastModified(),
           );
-
+          
           videos.add(videoFile);
         }
       }
@@ -256,7 +251,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
   Future<void> deleteVideo(String videoPath) async {
     try {
       debugPrint('Starting deletion of video: $videoPath');
-
+      
       if (!PathValidator.isValidVideoPath(videoPath)) {
         throw Exception('Invalid video path');
       }
@@ -272,6 +267,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
 
       _thumbnailCache.remove(videoPath);
       _durationCache.remove(videoPath);
+
     } catch (e) {
       debugPrint('Error deleting video: $e');
       rethrow;
@@ -280,14 +276,11 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
 
   Future<void> _deleteViaMediaStore(String videoPath) async {
     try {
-      final hasPermission =
-          await PermissionService.instance.requestStoragePermissions();
+      final hasPermission = await PermissionService.instance.requestStoragePermissions();
       if (!hasPermission) {
         final state = await PermissionService.instance.getPermissionState();
-        final message =
-            PermissionService.instance.getPermissionStatusMessage(state);
-        throw Exception(
-            '$message Please grant storage access in app settings.');
+        final message = PermissionService.instance.getPermissionStatusMessage(state);
+        throw Exception('$message Please grant storage access in app settings.');
       }
 
       final paths = await PhotoManager.getAssetPathList(
@@ -308,8 +301,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
             if (result.contains(asset.id)) {
               return;
             }
-            throw Exception(
-                'MediaStore deletion failed - video may be protected or in use');
+            throw Exception('MediaStore deletion failed - video may be protected or in use');
           }
         }
       }
@@ -332,8 +324,7 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
     if (Platform.isAndroid || Platform.isIOS) {
       final ps = await PhotoManager.requestPermissionExtend();
       if (!ps.hasAccess) {
-        throw PermissionDeniedException(
-            'Photo library permission not granted.');
+        throw PermissionDeniedException('Photo library permission not granted.');
       }
     }
   }
@@ -344,7 +335,8 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
       final ps = await PhotoManager.requestPermissionExtend();
       if (!ps.hasAccess) {
         throw PermissionDeniedException(
-            'Photo library permission not granted. Please grant permission in settings.');
+          'Photo library permission not granted. Please grant permission in settings.'
+        );
       }
 
       final paths = await PhotoManager.getAssetPathList(

@@ -4,12 +4,14 @@ class DeleteConfirmationDialog extends StatelessWidget {
   final String videoName;
   final VoidCallback onConfirm;
   final VoidCallback onCancel;
+  final String? message;
 
   const DeleteConfirmationDialog({
     super.key,
     required this.videoName,
     required this.onConfirm,
     required this.onCancel,
+    this.message,
   });
 
   @override
@@ -51,27 +53,30 @@ class DeleteConfirmationDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // Title
             Text(
               'Delete Video',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
             ),
             const SizedBox(height: 12),
-            
+
             // Message
             Text(
-              'Do you want to delete the video permanently?',
+              message ?? 'Do you want to delete the video permanently?',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
-              ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.8),
+                  ),
             ),
             const SizedBox(height: 8),
-            
+
             // Video name
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -82,16 +87,16 @@ class DeleteConfirmationDialog extends StatelessWidget {
               child: Text(
                 videoName,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // Action Buttons
             Row(
               children: [
@@ -118,7 +123,7 @@ class DeleteConfirmationDialog extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                
+
                 // Delete Button
                 Expanded(
                   child: ElevatedButton(
@@ -152,12 +157,14 @@ class DeleteConfirmationDialog extends StatelessWidget {
   static Future<bool?> show({
     required BuildContext context,
     required String videoName,
+    String? message,
   }) {
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) => DeleteConfirmationDialog(
         videoName: videoName,
+        message: message,
         onConfirm: () => Navigator.of(context).pop(true),
         onCancel: () => Navigator.of(context).pop(false),
       ),

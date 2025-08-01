@@ -13,13 +13,18 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
   final GetVideos getVideos;
   List<VideoFile> _allVideos = [];
   bool _isInitialized = false;
+  bool _isLoadingMore = false;
+  int _currentPage = 0;
+  static const int _pageSize = 20;
 
-  VideoListBloc({required this.getVideos}) : super(const VideoListInitial()) {
+  VideoListBloc._({required this.getVideos}) : super(const VideoListInitial()) {
     on<LoadVideos>(_onLoadVideos);
+    on<LoadMoreVideos>(_onLoadMoreVideos);
     on<SearchVideos>(_onSearchVideos);
     on<UpdateVideoStatus>(_onUpdateVideoStatus);
     on<ToggleFavorite>(_onToggleFavorite);
     on<DeleteVideo>(_onDeleteVideo);
+    on<DeleteMultipleVideos>(_onDeleteMultipleVideos);
     on<RefreshFromFavorites>(_onRefreshFromFavorites);
     on<InstantRemoveFromList>(_onInstantRemoveFromList);
 
@@ -27,15 +32,35 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
     add(const LoadVideos());
   }
 
+  String _getErrorMessage(Object e) {
+    final error = e.toString().toLowerCase();
+    if (error.contains('permission')) {
+      return 'Permission denied. Please grant photo library access in settings.';
+    } else if (error.contains('cache')) {
+      return 'Failed to access video files. Please check your device storage.';
+    }
+    return 'Error: ${e.toString()}';
+  }
+
+  factory VideoListBloc.create() {
+    final videoLocalDataSource = VideoLocalDataSourceImpl();
+    final videoRepository =
+        VideoRepositoryImpl(localDataSource: videoLocalDataSource);
+    final getVideosUseCase = GetVideos(videoRepository);
+    return VideoListBloc._(getVideos: getVideosUseCase);
+  }
+
   Future<void> _onLoadVideos(
       LoadVideos event, Emitter<VideoListState> emit) async {
-    // If forceRefresh, clear repository cache
+    // If forceRefresh, clear repository cache and reset pagination
     if (event.forceRefresh) {
       final repo = getVideos.repository;
       if (repo is VideoRepositoryImpl) {
         await repo.refreshCache();
       }
       _isInitialized = false;
+      _currentPage = 0;
+      _allVideos.clear();
     }
 
     // Don't reload if already initialized and not forced
@@ -50,18 +75,58 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
 
     emit(const VideoListLoading());
     try {
-      final videos = await getVideos();
+      final videos = await getVideos(page: 0, pageSize: _pageSize);
       _allVideos = videos;
       _isInitialized = true;
+      _currentPage = 0;
 
       if (videos.isEmpty) {
         emit(const VideoListEmpty());
       } else {
-        emit(VideoListLoaded(videos));
+        emit(VideoListLoaded(videos, hasMore: videos.length >= _pageSize));
       }
     } catch (e) {
-      String errorMessage = 'Failed to load videos';
+      debugPrint('Error loading videos: $e');
+      String errorMessage = _getErrorMessage(e);
+      emit(VideoListError(errorMessage));
+    }
+  }
 
+  Future<void> _onLoadMoreVideos(
+      LoadMoreVideos event, Emitter<VideoListState> emit) async {
+    if (_isLoadingMore || state is! VideoListLoaded) return;
+
+    final currentState = state as VideoListLoaded;
+    if (!currentState.hasMore) return;
+
+    try {
+      _isLoadingMore = true;
+      emit(currentState.copyWith(isLoadingMore: true));
+
+      final nextPage = _currentPage + 1;
+      final moreVideos = await getVideos(page: nextPage, pageSize: _pageSize);
+
+      if (moreVideos.isEmpty) {
+        emit(currentState.copyWith(
+          hasMore: false,
+          isLoadingMore: false,
+        ));
+        return;
+      }
+
+      _currentPage = nextPage;
+      _allVideos.addAll(moreVideos);
+
+      emit(VideoListLoaded(
+        _allVideos,
+        hasMore: moreVideos.length >= _pageSize,
+        isLoadingMore: false,
+      ));
+    } catch (e) {
+      if (state is VideoListLoaded) {
+        emit((state as VideoListLoaded).copyWith(isLoadingMore: false));
+      }
+      String errorMessage;
       if (e.toString().contains('PermissionDeniedException')) {
         errorMessage =
             'Permission denied. Please grant photo library access in settings.';
@@ -71,8 +136,9 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
       } else {
         errorMessage = 'Error: ${e.toString()}';
       }
-
       emit(VideoListError(errorMessage));
+    } finally {
+      _isLoadingMore = false;
     }
   }
 
@@ -217,53 +283,81 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
 
       // Remove from local list
       _allVideos.removeAt(videoIndex);
-      debugPrint(
-          'VideoListBloc: Removed video from local list, new count: ${_allVideos.length}');
 
-      // Emit updated state immediately
-      final newState = VideoListLoaded(List<VideoFile>.from(_allVideos));
-      emit(newState);
+      // Emit updated state
+      emit(VideoListLoaded(List<VideoFile>.from(_allVideos)));
+
+      // Notify favorites bloc
+      BlocCommunicationService.notifyFavoritesOfDeletion(event.videoPath);
+    } catch (e) {
+      debugPrint('VideoListBloc: Error deleting video: $e');
+      final errorMessage = 'Error deleting video: ${e.toString()}';
+      emit(VideoListError(errorMessage));
+    }
+  }
+
+  Future<void> _onDeleteMultipleVideos(
+      DeleteMultipleVideos event, Emitter<VideoListState> emit) async {
+    try {
       debugPrint(
-          'VideoListBloc: Emitted new state with ${_allVideos.length} videos');
+          'VideoListBloc: Attempting to delete ${event.videoPaths.length} videos');
+
+      // Track which videos were successfully deleted
+      final successfullyDeletedPaths = <String>[];
+
+      // Try to delete each video
+      for (final path in event.videoPaths) {
+        try {
+          await getVideos.repository.deleteVideo(path);
+          successfullyDeletedPaths.add(path);
+          BlocCommunicationService.notifyFavoritesOfDeletion(path);
+        } catch (e) {
+          debugPrint('VideoListBloc: Error deleting video $path: $e');
+          // Continue with other deletions even if one fails
+        }
+      }
+
+      // Remove successfully deleted videos from local list
+      _allVideos.removeWhere((v) => successfullyDeletedPaths.contains(v.path));
+
+      // Update state with remaining videos
+      emit(VideoListLoaded(List<VideoFile>.from(_allVideos)));
+
+      debugPrint(
+          'VideoListBloc: Successfully deleted ${successfullyDeletedPaths.length} videos');
 
       // Clear repository cache to ensure other screens get updated data
       final repo = getVideos.repository;
       if (repo is VideoRepositoryImpl) {
         await repo.refreshCache();
       }
-
-      // Instantly notify favorites bloc to remove this video
-      BlocCommunicationService.notifyFavoritesOfDeletion(event.videoPath);
     } catch (e) {
-      // Handle error - emit an error state with user-friendly message
-      debugPrint('VideoListBloc: Error deleting video: $e');
-
-      String errorMessage = 'Failed to delete video';
-      if (e.toString().contains('Storage permission denied')) {
-        errorMessage =
-            'Storage permission required to delete videos. Please grant permission and try again.';
-      } else if (e.toString().contains('protected location') ||
-          e.toString().contains('currently in use')) {
-        errorMessage =
-            'Cannot delete this video - it may be protected or currently in use.';
-      } else if (e.toString().contains('MediaStore deletion failed')) {
-        errorMessage =
-            'Unable to delete video from device storage. The file may be protected.';
-      } else if (e.toString().contains('Permission denied')) {
-        errorMessage = 'Permission denied. Cannot delete this video file.';
-      } else if (e.toString().contains('not found')) {
-        errorMessage = 'Video file not found.';
-      }
-
+      debugPrint('VideoListBloc: Error in batch deletion: $e');
+      final errorMessage = _getDeleteErrorMessage(e);
       emit(VideoListError(errorMessage));
 
       // After showing error, go back to loaded state
       Future.delayed(const Duration(seconds: 3), () {
-        if (!emit.isDone) {
-          emit(VideoListLoaded(List<VideoFile>.from(_allVideos)));
-        }
+        emit(VideoListLoaded(List<VideoFile>.from(_allVideos)));
       });
     }
+  }
+
+  String _getDeleteErrorMessage(Object e) {
+    final error = e.toString().toLowerCase();
+    if (error.contains('storage permission denied')) {
+      return 'Storage permission required to delete videos. Please grant permission and try again.';
+    } else if (error.contains('protected location') ||
+        error.contains('currently in use')) {
+      return 'Cannot delete this video - it may be protected or currently in use.';
+    } else if (error.contains('mediastore deletion failed')) {
+      return 'Unable to delete video from device storage. The file may be protected.';
+    } else if (error.contains('permission denied')) {
+      return 'Permission denied. Cannot delete this video file.';
+    } else if (error.contains('not found')) {
+      return 'Video file not found.';
+    }
+    return 'Failed to delete video';
   }
 
   Future<void> _onRefreshFromFavorites(
@@ -293,21 +387,9 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
           'VideoListBloc: Instantly removed video from list, new count: ${_allVideos.length}');
 
       // Emit updated state immediately
-      final newState = VideoListLoaded(List<VideoFile>.from(_allVideos));
-      emit(newState);
+      emit(VideoListLoaded(List<VideoFile>.from(_allVideos)));
       debugPrint(
           'VideoListBloc: Instantly emitted new state with ${_allVideos.length} videos');
     }
-  }
-
-  // Static create method for simplified DI as per subtask guideline
-  static VideoListBloc create() {
-    // VideoLocalDataSourceImpl doesn't need SharedPreferences, so it's simpler
-    final videoLocalDataSource = VideoLocalDataSourceImpl();
-    final videoRepository =
-        VideoRepositoryImpl(localDataSource: videoLocalDataSource);
-    final getVideosUseCase = GetVideos(videoRepository);
-
-    return VideoListBloc(getVideos: getVideosUseCase);
   }
 }

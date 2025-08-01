@@ -17,6 +17,13 @@ class LoadVideos extends VideoListEvent {
   List<Object?> get props => [forceRefresh];
 }
 
+class LoadMoreVideos extends VideoListEvent {
+  const LoadMoreVideos();
+
+  @override
+  List<Object?> get props => [];
+}
+
 class SearchVideos extends VideoListEvent {
   final String query;
 
@@ -57,6 +64,15 @@ class DeleteVideo extends VideoListEvent {
 
   @override
   List<Object?> get props => [videoPath];
+}
+
+class DeleteMultipleVideos extends VideoListEvent {
+  final List<String> videoPaths;
+
+  const DeleteMultipleVideos(this.videoPaths);
+
+  @override
+  List<Object?> get props => [videoPaths];
 }
 
 class RefreshFromFavorites extends VideoListEvent {

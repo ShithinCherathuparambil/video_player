@@ -3,8 +3,11 @@ import 'package:lumeo/domain/entities/video_file.dart';
 abstract class VideoRepository {
   /// Fetches a list of video files.
   ///
+  /// [page] The page number to fetch, starting from 0
+  /// [pageSize] The number of videos to fetch per page
+  ///
   /// Throws an exception if an error occurs during fetching (e.g., permission issues, network errors if applicable).
-  Future<List<VideoFile>> getVideos();
+  Future<List<VideoFile>> getVideos({int page = 0, int pageSize = 20});
 
   /// Saves video metadata including playback position and status.
   ///

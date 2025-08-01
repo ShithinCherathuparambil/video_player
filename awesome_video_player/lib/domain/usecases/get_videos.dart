@@ -7,7 +7,7 @@ class GetVideos {
   GetVideos(this.repository);
 
   /// Executes the use case to retrieve a list of video files.
-  Future<List<VideoFile>> call() async {
-    return await repository.getVideos();
+  Future<List<VideoFile>> call({int page = 0, int pageSize = 20}) async {
+    return await repository.getVideos(page: page, pageSize: pageSize);
   }
 }
