@@ -4,6 +4,7 @@ import 'package:lumeo/domain/entities/video_file.dart';
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_event.dart';
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_state.dart';
+import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_event.dart';
 import 'package:lumeo/presentation/screens/video_player_page.dart';
 import 'package:lumeo/presentation/screens/settings_page.dart';
 import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
@@ -14,7 +15,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_bloc.dart';
 import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_event.dart';
-import 'package:lumeo/presentation/screens/favorites_page.dart';
+import './favorites_page.dart';
 import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
 import 'package:lumeo/presentation/widgets/delete_confirmation_dialog.dart';
 import 'package:lumeo/core/services/bloc_communication_service.dart';
@@ -508,18 +509,34 @@ class _VideoListPageState extends State<VideoListPage>
       },
       onDoubleTap: () {
         if (_selectedVideos.isEmpty) {
-          // Toggle favorite on double tap
+          final wasInFavorites = video.isFavorite;
+
+          debugPrint(
+              'VideoListPage: Double tap detected for video: ${video.path}');
+          debugPrint('VideoListPage: Current favorite status: $wasInFavorites');
+
+          // Update video list state
           context.read<VideoListBloc>().add(ToggleFavorite(video.path));
+          debugPrint(
+              'VideoListPage: ToggleFavorite event dispatched for: ${video.path}');
+
+          // Update favorites bloc state
+          final favoritesBloc = BlocCommunicationService.getFavoritesBloc();
+          if (favoritesBloc != null && wasInFavorites) {
+            favoritesBloc.add(InstantRemoveFromFavorites(video.path));
+            debugPrint(
+                'VideoListPage: InstantRemoveFromFavorites event dispatched for: ${video.path}');
+          }
 
           // Show feedback
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                video.isFavorite
+                wasInFavorites
                     ? 'Removed from favorites'
                     : 'Added to favorites',
               ),
-              backgroundColor: video.isFavorite ? Colors.orange : Colors.green,
+              backgroundColor: wasInFavorites ? Colors.orange : Colors.green,
               duration: const Duration(seconds: 1),
             ),
           );
@@ -590,11 +607,11 @@ class _VideoListPageState extends State<VideoListPage>
                                         Theme.of(context)
                                             .colorScheme
                                             .primary
-                                            .withValues(alpha: 0.3),
+                                            .withOpacity(0.3),
                                         Theme.of(context)
                                             .colorScheme
                                             .secondary
-                                            .withValues(alpha: 0.3),
+                                            .withOpacity(0.3),
                                       ],
                                     ),
                                   ),
@@ -614,30 +631,55 @@ class _VideoListPageState extends State<VideoListPage>
                     child: _buildStatusIndicator(context, video, true),
                   ),
                   // Favorite indicator
-                  if (video.isFavorite)
-                    Positioned(
-                      bottom: 8,
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.red.withOpacity(0.3),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                  BlocBuilder<VideoListBloc, VideoListState>(
+                    builder: (context, state) {
+                      debugPrint(
+                          'VideoListPage: FavoriteIcon BlocBuilder rebuilding for video: ${video.path}');
+                      debugPrint(
+                          'VideoListPage: FavoriteIcon state type: ${state.runtimeType}');
+
+                      if (state is VideoListLoaded) {
+                        final currentVideo = state.videos.firstWhere(
+                          (v) => v.path == video.path,
+                          orElse: () => video,
+                        );
+
+                        debugPrint(
+                            'VideoListPage: FavoriteIcon current video favorite status: ${currentVideo.isFavorite}');
+
+                        if (currentVideo.isFavorite) {
+                          debugPrint(
+                              'VideoListPage: FavoriteIcon showing icon for: ${video.path}');
+                          return Positioned(
+                            bottom: 8,
+                            right: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withOpacity(0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.favorite,
+                                color: Colors.white,
+                                size: 12,
+                              ),
                             ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.favorite,
-                          color: Colors.white,
-                          size: 12,
-                        ),
-                      ),
-                    ),
+                          );
+                        }
+                      }
+                      debugPrint(
+                          'VideoListPage: FavoriteIcon hiding icon for: ${video.path}');
+                      return const SizedBox.shrink();
+                    },
+                  ),
                   // Resume indicator
                   if (video.lastPlayedPosition != null &&
                       video.duration != null)
@@ -780,16 +822,35 @@ class _VideoListPageState extends State<VideoListPage>
       },
       onDoubleTap: () {
         if (_selectedVideos.isEmpty) {
-          // Toggle favorite on double tap
+          final wasInFavorites = video.isFavorite;
+
+          debugPrint(
+              'VideoListPage: GridView double tap detected for video: ${video.path}');
+          debugPrint(
+              'VideoListPage: GridView current favorite status: $wasInFavorites');
+
+          // Update video list state
           context.read<VideoListBloc>().add(ToggleFavorite(video.path));
+          debugPrint(
+              'VideoListPage: GridView ToggleFavorite event dispatched for: ${video.path}');
+
+          // Update favorites bloc state
+          final favoritesBloc = BlocCommunicationService.getFavoritesBloc();
+          if (favoritesBloc != null && wasInFavorites) {
+            favoritesBloc.add(InstantRemoveFromFavorites(video.path));
+            debugPrint(
+                'VideoListPage: GridView InstantRemoveFromFavorites event dispatched for: ${video.path}');
+          }
+
+          // Show feedback
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                video.isFavorite
+                wasInFavorites
                     ? 'Removed from favorites'
                     : 'Added to favorites',
               ),
-              backgroundColor: video.isFavorite ? Colors.orange : Colors.green,
+              backgroundColor: wasInFavorites ? Colors.orange : Colors.green,
               duration: const Duration(seconds: 1),
             ),
           );
@@ -874,30 +935,55 @@ class _VideoListPageState extends State<VideoListPage>
                   child: _buildStatusIndicator(context, video, true),
                 ),
                 // Favorite indicator
-                if (video.isFavorite)
-                  Positioned(
-                    bottom: 8,
-                    right: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.red.withOpacity(0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                BlocBuilder<VideoListBloc, VideoListState>(
+                  builder: (context, state) {
+                    debugPrint(
+                        'VideoListPage: GridView FavoriteIcon BlocBuilder rebuilding for video: ${video.path}');
+                    debugPrint(
+                        'VideoListPage: GridView FavoriteIcon state type: ${state.runtimeType}');
+
+                    if (state is VideoListLoaded) {
+                      final currentVideo = state.videos.firstWhere(
+                        (v) => v.path == video.path,
+                        orElse: () => video,
+                      );
+
+                      debugPrint(
+                          'VideoListPage: GridView FavoriteIcon current video favorite status: ${currentVideo.isFavorite}');
+
+                      if (currentVideo.isFavorite) {
+                        debugPrint(
+                            'VideoListPage: GridView FavoriteIcon showing icon for: ${video.path}');
+                        return Positioned(
+                          bottom: 8,
+                          right: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.red.withOpacity(0.3),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.favorite,
+                              color: Colors.white,
+                              size: 12,
+                            ),
                           ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.favorite,
-                        color: Colors.white,
-                        size: 12,
-                      ),
-                    ),
-                  ),
+                        );
+                      }
+                    }
+                    debugPrint(
+                        'VideoListPage: GridView FavoriteIcon hiding icon for: ${video.path}');
+                    return const SizedBox.shrink();
+                  },
+                ),
                 // Duration indicator
                 if (video.duration != null)
                   Positioned(

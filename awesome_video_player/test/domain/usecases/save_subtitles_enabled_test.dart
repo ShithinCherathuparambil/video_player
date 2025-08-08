@@ -191,6 +191,8 @@ void main() {
           themeMode: ThemeMode.light,
           isGridView: null,
           subtitlesEnabled: false,
+          videoDecoder: 'auto', // Provide a default value
+          hardwareAcceleration: false, // Provide a default value
         );
 
         when(mockSettingsRepository.getSettings())

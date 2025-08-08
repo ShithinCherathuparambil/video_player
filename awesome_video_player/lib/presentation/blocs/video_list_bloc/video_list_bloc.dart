@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lumeo/domain/entities/video_file.dart';
@@ -12,6 +13,7 @@ import './video_list_state.dart';
 class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
   final GetVideos getVideos;
   List<VideoFile> _allVideos = [];
+  List<VideoFile>? _searchResults;
   bool _isInitialized = false;
   bool _isLoadingMore = false;
   int _currentPage = 0;
@@ -228,35 +230,74 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
     }
   }
 
-  void _onToggleFavorite(
+  Future<void> _onToggleFavorite(
       ToggleFavorite event, Emitter<VideoListState> emit) async {
-    try {
-      // Find the video in the list
-      final videoIndex =
-          _allVideos.indexWhere((v) => v.path == event.videoPath);
+    if (state is! VideoListLoaded) return;
 
+    try {
+      debugPrint(
+          'VideoListBloc: ToggleFavorite called for video: ${event.videoPath}');
+      final currentState = state as VideoListLoaded;
+      final currentVideos = currentState.videos;
+
+      // Find video in current visible list
+      final videoIndex =
+          currentVideos.indexWhere((v) => v.path == event.videoPath);
       if (videoIndex != -1) {
-        final video = _allVideos[videoIndex];
+        // Create updated video with toggled favorite status
+        final video = currentVideos[videoIndex];
         final updatedVideo = video.copyWith(isFavorite: !video.isFavorite);
 
-        // Update the video in the list
-        _allVideos[videoIndex] = updatedVideo;
+        debugPrint(
+            'VideoListBloc: Video ${event.videoPath} - Previous favorite: ${video.isFavorite}, New favorite: ${updatedVideo.isFavorite}');
 
-        // Create a new list to ensure state change is detected
-        final newVideosList = List<VideoFile>.from(_allVideos);
+        // Update the videos in both lists while maintaining references
+        final updatedVideos = List<VideoFile>.from(currentVideos);
+        updatedVideos[videoIndex] = updatedVideo;
 
-        // Emit the updated state immediately
-        final newState = VideoListLoaded(newVideosList);
-        emit(newState);
-
-        // Save to repository in background
-        final repo = getVideos.repository;
-        if (repo is VideoRepositoryImpl) {
-          await repo.toggleFavorite(event.videoPath);
+        // Update in _allVideos list
+        final mainIndex =
+            _allVideos.indexWhere((v) => v.path == event.videoPath);
+        if (mainIndex != -1) {
+          _allVideos[mainIndex] = updatedVideo;
         }
+
+        // If we're showing search results, update them too
+        if (_searchResults != null) {
+          final searchIndex =
+              _searchResults!.indexWhere((v) => v.path == event.videoPath);
+          if (searchIndex != -1) {
+            _searchResults![searchIndex] = updatedVideo;
+          }
+        }
+
+        // Emit new state while preserving the current view state
+        emit(VideoListLoaded(
+          updatedVideos,
+          hasMore: currentState.hasMore,
+          isLoadingMore: currentState.isLoadingMore,
+        ));
+
+        debugPrint(
+            'VideoListBloc: Emitted new VideoListLoaded state with ${updatedVideos.length} videos');
+
+        // Update repository in background without blocking UI
+        try {
+          final repo = getVideos.repository;
+          if (repo is VideoRepositoryImpl) {
+            unawaited(repo.toggleFavorite(event.videoPath));
+          }
+        } catch (e) {
+          debugPrint('Error updating favorite status in repository: $e');
+          // Don't emit error state since UI is already updated
+        }
+      } else {
+        debugPrint(
+            'VideoListBloc: Video ${event.videoPath} not found in current visible list');
       }
     } catch (e) {
-      // Handle error silently
+      debugPrint('Error toggling favorite: $e');
+      // Don't emit error state since UI is already updated
     }
   }
 

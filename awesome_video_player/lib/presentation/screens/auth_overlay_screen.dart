@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lumeo/core/security/authentication_service.dart';
 import 'package:lumeo/domain/usecases/authenticate_user.dart';
+import 'package:lumeo/core/security/app_authentication_manager.dart';
 
 /// Authentication overlay screen that appears when app returns from background
 class AuthOverlayScreen extends StatefulWidget {
@@ -58,12 +59,17 @@ class _AuthOverlayScreenState extends State<AuthOverlayScreen> {
 
       if (result.isSuccess) {
         _updateStatus('Authentication successful');
+        // Mark session as authenticated to prevent future auth requests
+        AppAuthenticationManager().markSessionAuthenticated();
+        debugPrint(
+            'AuthOverlayScreen: Authentication successful, marking session as authenticated');
         await Future.delayed(const Duration(milliseconds: 500));
         widget.onAuthenticationSuccess();
       } else {
         _handleAuthenticationFailure(result);
       }
     } catch (e) {
+      debugPrint('AuthOverlayScreen: Authentication error: $e');
       _updateStatus('Authentication error');
       await Future.delayed(const Duration(seconds: 1));
       _showRetryDialog();

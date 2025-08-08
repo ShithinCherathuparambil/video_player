@@ -16,8 +16,9 @@ class PermissionDeniedException implements Exception {
 // Manual mock for VideoLocalDataSource
 class MockVideoLocalDataSource extends Mock implements VideoLocalDataSource {
   @override
-  Future<List<VideoFile>> getVideos() => super.noSuchMethod(
-        Invocation.method(#getVideos, []),
+  Future<List<VideoFile>> getVideos({int? page, int? pageSize}) =>
+      super.noSuchMethod(
+        Invocation.method(#getVideos, [], {#page: page, #pageSize: pageSize}),
         returnValue: Future.value(<VideoFile>[]),
       );
 

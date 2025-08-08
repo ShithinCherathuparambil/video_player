@@ -13,7 +13,10 @@ class FavoritesBloc extends Bloc<FavoritesEvent, FavoritesState> {
   final GetFavoriteVideos getFavoriteVideos;
   final ToggleFavorite toggleFavorite;
   List<VideoFile> _allFavorites = [];
+  List<VideoFile>? _searchResults;
+  String? _currentSearchQuery;
   bool _isInitialized = false;
+  bool _isGridView = false;
 
   FavoritesBloc({
     required this.getFavoriteVideos,
@@ -23,8 +26,11 @@ class FavoritesBloc extends Bloc<FavoritesEvent, FavoritesState> {
     on<ToggleFavoriteEvent>(_onToggleFavorite);
     on<RefreshFavorites>(_onRefreshFavorites);
     on<DeleteFavoriteVideo>(_onDeleteFavoriteVideo);
+    on<DeleteMultipleFavorites>(_onDeleteMultipleFavorites);
     on<RefreshFromVideoList>(_onRefreshFromVideoList);
     on<InstantRemoveFromFavorites>(_onInstantRemoveFromFavorites);
+    on<SearchFavorites>(_onSearchFavorites);
+    on<ToggleViewMode>(_onToggleViewMode);
 
     // Automatically load favorites when BLoC is created
     add(const LoadFavorites());
@@ -50,7 +56,11 @@ class FavoritesBloc extends Bloc<FavoritesEvent, FavoritesState> {
       if (favorites.isEmpty) {
         emit(const FavoritesEmpty());
       } else {
-        emit(FavoritesLoaded(favorites));
+        emit(FavoritesLoaded(
+          favorites,
+          isGridView: _isGridView,
+          searchQuery: _currentSearchQuery,
+        ));
       }
     } catch (e) {
       emit(FavoritesError('Failed to load favorites: $e'));
@@ -81,6 +91,8 @@ class FavoritesBloc extends Bloc<FavoritesEvent, FavoritesState> {
       RefreshFavorites event, Emitter<FavoritesState> emit) async {
     _isInitialized = false;
     _allFavorites = [];
+    _searchResults = null;
+    _currentSearchQuery = null;
 
     // Clear repository cache to ensure fresh data
     final repo = getFavoriteVideos.repository;
@@ -89,6 +101,109 @@ class FavoritesBloc extends Bloc<FavoritesEvent, FavoritesState> {
     }
 
     add(const LoadFavorites());
+  }
+
+  void _onToggleViewMode(ToggleViewMode event, Emitter<FavoritesState> emit) {
+    if (state is FavoritesLoaded) {
+      _isGridView = !_isGridView;
+      emit(FavoritesLoaded(
+        _searchResults ?? _allFavorites,
+        isGridView: _isGridView,
+        searchQuery: _currentSearchQuery,
+      ));
+    }
+  }
+
+  Future<void> _onSearchFavorites(
+      SearchFavorites event, Emitter<FavoritesState> emit) async {
+    if (event.query.isEmpty) {
+      _searchResults = null;
+      _currentSearchQuery = null;
+      if (_allFavorites.isEmpty) {
+        emit(const FavoritesEmpty());
+      } else {
+        emit(FavoritesLoaded(_allFavorites, isGridView: _isGridView));
+      }
+      return;
+    }
+
+    _currentSearchQuery = event.query.toLowerCase();
+    _searchResults = _allFavorites.where((video) {
+      final name = video.name.toLowerCase();
+      final path = video.path.toLowerCase();
+      return name.contains(_currentSearchQuery!) ||
+          path.contains(_currentSearchQuery!);
+    }).toList();
+
+    if (_searchResults!.isEmpty) {
+      emit(const FavoritesEmpty());
+    } else {
+      emit(FavoritesLoaded(
+        _searchResults!,
+        isGridView: _isGridView,
+        searchQuery: _currentSearchQuery,
+      ));
+    }
+  }
+
+  Future<void> _onDeleteMultipleFavorites(
+      DeleteMultipleFavorites event, Emitter<FavoritesState> emit) async {
+    try {
+      debugPrint(
+          'FavoritesBloc: Attempting to delete ${event.videoPaths.length} videos');
+
+      // Track successfully deleted videos
+      final successfullyDeletedPaths = <String>[];
+
+      // Try to delete each video
+      for (final path in event.videoPaths) {
+        try {
+          // Remove from favorites first
+          await toggleFavorite(path);
+
+          // Then delete the file
+          final repo = getFavoriteVideos.repository;
+          if (repo is VideoRepositoryImpl) {
+            final localDataSource = repo.localDataSource;
+            if (localDataSource is VideoLocalDataSourceImpl) {
+              await localDataSource.deleteVideo(path);
+            }
+          }
+
+          successfullyDeletedPaths.add(path);
+          BlocCommunicationService.notifyVideoListOfDeletion(path);
+        } catch (e) {
+          debugPrint('FavoritesBloc: Error deleting video $path: $e');
+          // Continue with other deletions even if one fails
+        }
+      }
+
+      // Remove successfully deleted videos from local lists
+      _allFavorites
+          .removeWhere((v) => successfullyDeletedPaths.contains(v.path));
+      if (_searchResults != null) {
+        _searchResults!
+            .removeWhere((v) => successfullyDeletedPaths.contains(v.path));
+      }
+
+      // Update state with remaining videos
+      final currentVideos = _searchResults ?? _allFavorites;
+      if (currentVideos.isEmpty) {
+        emit(const FavoritesEmpty());
+      } else {
+        emit(FavoritesLoaded(
+          currentVideos,
+          isGridView: _isGridView,
+          searchQuery: _currentSearchQuery,
+        ));
+      }
+
+      debugPrint(
+          'FavoritesBloc: Successfully deleted ${successfullyDeletedPaths.length} videos');
+    } catch (e) {
+      debugPrint('FavoritesBloc: Error in batch deletion: $e');
+      emit(FavoritesError('Failed to delete videos: $e'));
+    }
   }
 
   Future<void> _onDeleteFavoriteVideo(
@@ -179,22 +294,31 @@ class FavoritesBloc extends Bloc<FavoritesEvent, FavoritesState> {
       InstantRemoveFromFavorites event, Emitter<FavoritesState> emit) async {
     debugPrint('FavoritesBloc: Instantly removing video: ${event.videoPath}');
 
-    // Find and remove the video from local favorites list
-    final videoIndex =
-        _allFavorites.indexWhere((v) => v.path == event.videoPath);
-    if (videoIndex != -1) {
-      _allFavorites.removeAt(videoIndex);
-      debugPrint(
-          'FavoritesBloc: Instantly removed video from favorites, new count: ${_allFavorites.length}');
+    try {
+      // Call toggleFavorite to persist the change
+      await toggleFavorite(event.videoPath);
+      debugPrint('FavoritesBloc: Successfully persisted favorite state change');
 
-      // Emit updated state immediately
-      if (_allFavorites.isEmpty) {
-        emit(const FavoritesEmpty());
-      } else {
-        emit(FavoritesLoaded(List<VideoFile>.from(_allFavorites)));
+      // Update the in-memory list
+      final videoIndex =
+          _allFavorites.indexWhere((v) => v.path == event.videoPath);
+      if (videoIndex != -1) {
+        _allFavorites.removeAt(videoIndex);
+        debugPrint(
+            'FavoritesBloc: Instantly removed video from favorites, new count: ${_allFavorites.length}');
+
+        // Emit updated state immediately
+        if (_allFavorites.isEmpty) {
+          emit(const FavoritesEmpty());
+        } else {
+          emit(FavoritesLoaded(List<VideoFile>.from(_allFavorites)));
+        }
+        debugPrint(
+            'FavoritesBloc: Instantly emitted new state with ${_allFavorites.length} favorites');
       }
-      debugPrint(
-          'FavoritesBloc: Instantly emitted new state with ${_allFavorites.length} favorites');
+    } catch (e) {
+      debugPrint('FavoritesBloc: Error removing video from favorites: $e');
+      // Don't emit error state to keep UI responsive, the next refresh will restore correct state
     }
   }
 

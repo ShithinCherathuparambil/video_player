@@ -36,6 +36,9 @@ class _SplashScreenState extends State<SplashScreen> {
       SettingsRepositoryImpl(localDataSource: SettingsLocalDataSourceImpl()),
     );
 
+    // Print current authentication state for debugging
+    AppAuthenticationManager().printAuthenticationState();
+
     // Start the initialization process
     _initializeApp();
 
@@ -63,6 +66,8 @@ class _SplashScreenState extends State<SplashScreen> {
         // Check if we've already authenticated during splash in this app launch
         if (AppAuthenticationManager().hasSplashAuthenticated()) {
           // Already authenticated during splash, skip
+          debugPrint(
+              'SplashScreen: Already authenticated during splash, skipping');
           _navigateToHome();
           return;
         }
@@ -82,11 +87,14 @@ class _SplashScreenState extends State<SplashScreen> {
         }
       } else {
         // No authentication required, proceed to home
+        debugPrint(
+            'SplashScreen: No authentication required, proceeding to home');
         AppAuthenticationManager().markSplashCompleted();
         _navigateToHome();
       }
     } catch (e) {
       // Handle any errors during initialization
+      debugPrint('SplashScreen: Initialization error: $e');
       _updateStatus('Initialization failed');
       await Future.delayed(const Duration(seconds: 1));
       AppAuthenticationManager().markSplashCompleted();
@@ -113,12 +121,15 @@ class _SplashScreenState extends State<SplashScreen> {
         _updateStatus('Authentication successful');
         // Mark splash authentication as completed
         AppAuthenticationManager().markSplashAuthenticated();
+        debugPrint(
+            'SplashScreen: Authentication successful, marking splash as authenticated');
         await Future.delayed(const Duration(milliseconds: 500));
         _navigateToHome();
       } else {
         _handleAuthenticationFailure(result);
       }
     } catch (e) {
+      debugPrint('SplashScreen: Authentication error: $e');
       _updateStatus('Authentication error');
       await Future.delayed(const Duration(seconds: 1));
       _navigateToHome();

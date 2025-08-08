@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class DeleteConfirmationDialog extends StatelessWidget {
+class BatchDeleteConfirmationDialog extends StatelessWidget {
   final String? videoName;
   final int? videoCount;
   final VoidCallback onConfirm;
   final VoidCallback onCancel;
   final String? message;
 
-  const DeleteConfirmationDialog({
+  const BatchDeleteConfirmationDialog({
     super.key,
     this.videoName,
     this.videoCount,
@@ -69,7 +69,7 @@ class DeleteConfirmationDialog extends StatelessWidget {
 
             // Message
             Text(
-              message ?? 'Do you want to delete the video permanently?',
+              message ?? _getDefaultMessage(videoCount, videoName),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context)
@@ -80,39 +80,26 @@ class DeleteConfirmationDialog extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            // Video name or count
-            if (videoName != null || videoCount != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceVariant,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: videoName != null
-                    ? Text(
-                        videoName ?? '',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                      )
-                    : Text(
-                        '${videoCount!} video${videoCount! > 1 ? 's' : ''} selected',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
+            // Video details
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: Text(
+                videoCount != null
+                    ? '$videoCount video${videoCount! > 1 ? 's' : ''} selected'
+                    : videoName ?? 'Selected video',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
             const SizedBox(height: 24),
 
             // Action Buttons
@@ -171,6 +158,16 @@ class DeleteConfirmationDialog extends StatelessWidget {
     );
   }
 
+  String _getDefaultMessage(int? count, String? name) {
+    if (count != null) {
+      return 'Do you want to delete these $count video${count > 1 ? 's' : ''} permanently?';
+    }
+    if (name != null && name.isNotEmpty) {
+      return 'Do you want to delete "$name" permanently?';
+    }
+    return 'Do you want to delete this video permanently?';
+  }
+
   /// Show the delete confirmation dialog
   static Future<bool?> show({
     required BuildContext context,
@@ -184,13 +181,10 @@ class DeleteConfirmationDialog extends StatelessWidget {
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => DeleteConfirmationDialog(
+      builder: (context) => BatchDeleteConfirmationDialog(
         videoName: videoName,
         videoCount: videoCount,
-        message: message ??
-            (videoCount != null
-                ? 'Do you want to delete ${videoCount} video${videoCount > 1 ? 's' : ''} permanently?'
-                : 'Do you want to delete this video permanently?'),
+        message: message,
         onConfirm: () => Navigator.of(context).pop(true),
         onCancel: () => Navigator.of(context).pop(false),
       ),

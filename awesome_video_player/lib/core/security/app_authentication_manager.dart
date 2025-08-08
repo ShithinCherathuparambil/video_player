@@ -55,13 +55,21 @@ class AppAuthenticationManager with WidgetsBindingObserver {
       case AppLifecycleState.resumed:
         // App is coming back to foreground
         debugPrint(
-            'AppAuthenticationManager: App resumed, _wasInBackground=$_wasInBackground, _isAuthOverlayVisible=$_isAuthOverlayVisible, _isInitialAppStartup=$_isInitialAppStartup');
+            'AppAuthenticationManager: App resumed, _wasInBackground=$_wasInBackground, _isAuthOverlayVisible=$_isAuthOverlayVisible, _isInitialAppStartup=$_isInitialAppStartup, _hasAuthenticatedOnSplash=$_hasAuthenticatedOnSplash');
 
         // Skip authentication during initial app startup to avoid double authentication
         if (_isInitialAppStartup) {
           debugPrint(
               'AppAuthenticationManager: Skipping authentication during initial startup');
           _isInitialAppStartup = false;
+          return;
+        }
+
+        // Skip authentication if we just authenticated during splash screen
+        if (_hasAuthenticatedOnSplash) {
+          debugPrint(
+              'AppAuthenticationManager: Skipping authentication - already authenticated during splash');
+          _wasInBackground = false;
           return;
         }
 
@@ -83,6 +91,7 @@ class AppAuthenticationManager with WidgetsBindingObserver {
         _hasAuthenticatedThisSession = false;
         _hasAuthenticatedOnSplash = false;
         _isInitialAppStartup = true;
+        _isAuthOverlayVisible = false;
         debugPrint(
             'AppAuthenticationManager: App terminated, resetting authentication state');
         break;
@@ -105,13 +114,15 @@ class AppAuthenticationManager with WidgetsBindingObserver {
 
       // Show authentication if required and not already visible
       // Background authentication should always trigger if auth is enabled
-      if (authRequired && !_isAuthOverlayVisible) {
+      if (authRequired &&
+          !_isAuthOverlayVisible &&
+          !_hasAuthenticatedThisSession) {
         debugPrint(
             'AppAuthenticationManager: Showing authentication for background return');
         _showAuthOverlay();
       } else {
         debugPrint(
-            'AppAuthenticationManager: Not showing authentication - authRequired=$authRequired, _isAuthOverlayVisible=$_isAuthOverlayVisible');
+            'AppAuthenticationManager: Not showing authentication - authRequired=$authRequired, _isAuthOverlayVisible=$_isAuthOverlayVisible, _hasAuthenticatedThisSession=$_hasAuthenticatedThisSession');
       }
     } catch (e) {
       // Handle error silently - don't block app usage
@@ -211,5 +222,30 @@ class AppAuthenticationManager with WidgetsBindingObserver {
   void resetSessionAuthentication() {
     _hasAuthenticatedThisSession = false;
     _hasAuthenticatedOnSplash = false;
+  }
+
+  /// Reset splash authentication state (useful when app is restarted or settings change)
+  void resetSplashAuthentication() {
+    _hasAuthenticatedOnSplash = false;
+    _isInitialAppStartup = true;
+    debugPrint('AppAuthenticationManager: Reset splash authentication state');
+  }
+
+  /// Get current authentication state for debugging
+  Map<String, dynamic> getAuthenticationState() {
+    return {
+      'isInitialized': _isInitialized,
+      'isAuthOverlayVisible': _isAuthOverlayVisible,
+      'wasInBackground': _wasInBackground,
+      'hasAuthenticatedThisSession': _hasAuthenticatedThisSession,
+      'hasAuthenticatedOnSplash': _hasAuthenticatedOnSplash,
+      'isInitialAppStartup': _isInitialAppStartup,
+    };
+  }
+
+  /// Print current authentication state for debugging
+  void printAuthenticationState() {
+    final state = getAuthenticationState();
+    debugPrint('AppAuthenticationManager: Current state: $state');
   }
 }

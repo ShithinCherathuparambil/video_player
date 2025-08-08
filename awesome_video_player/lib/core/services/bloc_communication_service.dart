@@ -34,6 +34,9 @@ class BlocCommunicationService {
     }
   }
 
+  /// Get the registered FavoritesBloc instance
+  static FavoritesBloc? getFavoritesBloc() => _favoritesBloc;
+
   /// Clean up references when BLoCs are disposed
   static void dispose() {
     _videoListBloc = null;

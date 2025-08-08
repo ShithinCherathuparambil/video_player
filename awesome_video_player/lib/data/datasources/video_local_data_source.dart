@@ -29,12 +29,62 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
   final Directory? _directory;
   final Map<String, Uint8List> _thumbnailCache = {};
   final Map<String, Duration?> _durationCache = {};
+  String? _currentSearchQuery;
+  List<VideoFile>? _searchResults;
 
   VideoLocalDataSourceImpl({Directory? directory}) : _directory = directory;
 
   @override
-  Future<List<VideoFile>> getVideos({int page = 0, int pageSize = 20}) async {
+  Future<List<VideoFile>> getVideos({
+    int page = 0,
+    int pageSize = 20,
+    String? searchQuery,
+    bool keepCurrentSearch = true,
+  }) async {
     try {
+      // If we have a search query, update the search state
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        _currentSearchQuery = searchQuery;
+        _searchResults = null; // Clear cache for new search
+      }
+
+      // If we want to keep current search and have a previous search query
+      if (keepCurrentSearch &&
+          _currentSearchQuery != null &&
+          _currentSearchQuery!.isNotEmpty) {
+        // Use cached results if available
+        if (_searchResults != null) {
+          final start = page * pageSize;
+          final end = start + pageSize;
+          return _searchResults!.sublist(
+            start,
+            end.clamp(0, _searchResults!.length),
+          );
+        }
+
+        // Get all videos and filter
+        final allVideos = await _getAllVideos();
+        _searchResults = allVideos.where((video) {
+          final searchText = _currentSearchQuery!.toLowerCase();
+          return video.name.toLowerCase().contains(searchText) ||
+              path
+                  .basenameWithoutExtension(video.path)
+                  .toLowerCase()
+                  .contains(searchText);
+        }).toList();
+
+        final start = page * pageSize;
+        final end = start + pageSize;
+        return _searchResults!.sublist(
+          start,
+          end.clamp(0, _searchResults!.length),
+        );
+      }
+
+      // No search active, clear search state
+      _currentSearchQuery = null;
+      _searchResults = null;
+
       if (Platform.isAndroid || Platform.isIOS) {
         return await _getPlatformVideos(page: page, pageSize: pageSize);
       } else {
@@ -43,6 +93,41 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
     } catch (e) {
       debugPrint('Error getting videos: $e');
       throw CacheException();
+    }
+  }
+
+  Future<List<VideoFile>> _getAllVideos() async {
+    if (Platform.isAndroid || Platform.isIOS) {
+      final ps = await PhotoManager.requestPermissionExtend();
+      if (!ps.hasAccess) {
+        throw PermissionDeniedException(
+            'Photo library permission not granted. Please grant permission in settings.');
+      }
+
+      final paths = await PhotoManager.getAssetPathList(
+        onlyAll: true,
+        type: RequestType.video,
+      );
+
+      if (paths.isEmpty) return [];
+
+      final recentPath = paths.first;
+      final assetCount = await recentPath.assetCountAsync;
+      final List<VideoFile> allVideos = [];
+
+      // Get all videos in batches to avoid memory issues
+      const batchSize = 50;
+      for (int i = 0; i < assetCount; i += batchSize) {
+        final videos = await _getPlatformVideos(
+          page: i ~/ batchSize,
+          pageSize: batchSize.clamp(0, assetCount - i),
+        );
+        allVideos.addAll(videos);
+      }
+      return allVideos;
+    } else {
+      return await _getLocalVideos(
+          page: 0, pageSize: 1000); // Adjust page size as needed
     }
   }
 

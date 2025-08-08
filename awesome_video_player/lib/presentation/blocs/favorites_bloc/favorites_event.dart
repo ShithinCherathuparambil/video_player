@@ -48,3 +48,25 @@ class InstantRemoveFromFavorites extends FavoritesEvent {
   @override
   List<Object?> get props => [videoPath];
 }
+
+class SearchFavorites extends FavoritesEvent {
+  final String query;
+
+  const SearchFavorites(this.query);
+
+  @override
+  List<Object?> get props => [query];
+}
+
+class ToggleViewMode extends FavoritesEvent {
+  const ToggleViewMode();
+}
+
+class DeleteMultipleFavorites extends FavoritesEvent {
+  final List<String> videoPaths;
+
+  const DeleteMultipleFavorites(this.videoPaths);
+
+  @override
+  List<Object?> get props => [videoPaths];
+}

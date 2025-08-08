@@ -18,13 +18,19 @@ class FavoritesLoading extends FavoritesState {
 
 class FavoritesLoaded extends FavoritesState {
   final List<VideoFile> favorites;
+  final bool isGridView;
+  final String? searchQuery;
   final DateTime timestamp;
 
-  FavoritesLoaded(this.favorites, {DateTime? timestamp})
-      : timestamp = timestamp ?? DateTime.now();
+  FavoritesLoaded(
+    this.favorites, {
+    this.isGridView = false,
+    this.searchQuery,
+    DateTime? timestamp,
+  }) : timestamp = timestamp ?? DateTime.now();
 
   @override
-  List<Object?> get props => [favorites, timestamp];
+  List<Object?> get props => [favorites, isGridView, searchQuery, timestamp];
 }
 
 class FavoritesEmpty extends FavoritesState {

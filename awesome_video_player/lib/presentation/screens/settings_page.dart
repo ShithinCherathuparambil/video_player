@@ -326,9 +326,6 @@ class _SettingsPageState extends State<SettingsPage> {
               itemCount: decoders.length,
               itemBuilder: (context, index) {
                 final decoder = decoders[index];
-                final isSelected = state is ThemeLoaded &&
-                    state.videoDecoder == decoder['value'];
-
                 return RadioListTile<String>(
                   title: Text(decoder['title']!),
                   subtitle: Text(decoder['subtitle']!),
