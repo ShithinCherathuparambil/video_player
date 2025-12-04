@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
 import 'package:lumeo/presentation/widgets/advanced_features_panel.dart';
 
 class FloatingVideoControls extends StatefulWidget {
-  final VideoPlayerController controller;
+  final Duration position;
+  final Duration duration;
+  final VoidCallback? onTogglePlayPause;
   final bool isPlaying;
   final bool showControls;
   final VoidCallback onOpenEqualizer;
   final VoidCallback onOpenVideoEffects;
   final bool hasVideoEffects;
   final VoidCallback onOpenAdvancedFeatures;
+  final VoidCallback? onOpenFitModeSelector;
   final VoidCallback onSeekForward;
   final VoidCallback onSeekBackward;
   final VoidCallback onToggleStatistics;
@@ -57,13 +59,16 @@ class FloatingVideoControls extends StatefulWidget {
 
   const FloatingVideoControls({
     super.key,
-    required this.controller,
+    required this.position,
+    required this.duration,
+    this.onTogglePlayPause,
     required this.isPlaying,
     required this.showControls,
     required this.onOpenEqualizer,
     required this.onOpenVideoEffects,
     required this.hasVideoEffects,
     required this.onOpenAdvancedFeatures,
+    this.onOpenFitModeSelector,
     required this.onSeekForward,
     required this.onSeekBackward,
     required this.onToggleStatistics,
@@ -285,6 +290,13 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
                       onPressed: widget.onOpenVideoEffects,
                     ),
                     const SizedBox(width: 8),
+                    if (widget.onOpenFitModeSelector != null)
+                      _buildGlassButton(
+                        icon: Icons.fit_screen,
+                        onPressed: widget.onOpenFitModeSelector!,
+                      ),
+                    if (widget.onOpenFitModeSelector != null)
+                      const SizedBox(width: 8),
                     _buildGlassButton(
                       icon: Icons.speed,
                       onPressed: _showPlaybackSpeedOptions,

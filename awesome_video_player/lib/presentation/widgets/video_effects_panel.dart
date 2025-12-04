@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lumeo/core/services/video_effects_service.dart';
 
 class VideoEffectsPanel extends StatefulWidget {
   final double brightness;
@@ -7,12 +8,16 @@ class VideoEffectsPanel extends StatefulWidget {
   final double hue;
   final double gamma;
   final String selectedFilter;
+  final double rotation; // VLC-style rotation (0, 90, 180, 270)
+  final bool deinterlace; // VLC-style deinterlace
   final ValueChanged<double> onBrightnessChanged;
   final ValueChanged<double> onContrastChanged;
   final ValueChanged<double> onSaturationChanged;
   final ValueChanged<double> onHueChanged;
   final ValueChanged<double> onGammaChanged;
   final ValueChanged<String> onFilterChanged;
+  final ValueChanged<double>? onRotationChanged;
+  final ValueChanged<bool>? onDeinterlaceChanged;
 
   const VideoEffectsPanel({
     super.key,
@@ -22,12 +27,16 @@ class VideoEffectsPanel extends StatefulWidget {
     required this.hue,
     required this.gamma,
     required this.selectedFilter,
+    this.rotation = 0.0,
+    this.deinterlace = false,
     required this.onBrightnessChanged,
     required this.onContrastChanged,
     required this.onSaturationChanged,
     required this.onHueChanged,
     required this.onGammaChanged,
     required this.onFilterChanged,
+    this.onRotationChanged,
+    this.onDeinterlaceChanged,
   });
 
   @override
@@ -35,6 +44,7 @@ class VideoEffectsPanel extends StatefulWidget {
 }
 
 class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
+  final VideoEffectsService _effectsService = VideoEffectsService();
   final List<String> _filters = [
     'None',
     'Vintage',
@@ -121,6 +131,19 @@ class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
     },
   };
 
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedPresets();
+  }
+
+  Future<void> _loadSavedPresets() async {
+    final savedPresets = await _effectsService.getPresets();
+    setState(() {
+      _filterPresets.addAll(savedPresets);
+    });
+  }
+
   void _applyFilter(String filterName) {
     final preset = _filterPresets[filterName];
     if (preset != null) {
@@ -132,6 +155,9 @@ class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
       widget.onGammaChanged(preset['gamma']!);
       widget.onFilterChanged(filterName);
 
+      // Save current preset
+      _effectsService.saveCurrentPreset(filterName);
+
       // Force rebuild of this widget to update sliders and selection
       setState(() {});
 
@@ -141,6 +167,55 @@ class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
           content: Text('Applied $filterName filter'),
           duration: const Duration(seconds: 1),
           backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveCurrentAsPreset() async {
+    final nameController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save Preset'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            hintText: 'Preset name',
+            labelText: 'Name',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (nameController.text.isNotEmpty) {
+                Navigator.pop(context, nameController.text);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      final currentValues = {
+        'brightness': widget.brightness,
+        'contrast': widget.contrast,
+        'saturation': widget.saturation,
+        'hue': widget.hue,
+        'gamma': widget.gamma,
+      };
+      await _effectsService.savePreset(result, currentValues);
+      await _loadSavedPresets();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Preset "$result" saved'),
+          duration: const Duration(seconds: 1),
         ),
       );
     }
@@ -190,10 +265,45 @@ class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
           // Color adjustments
           _buildColorAdjustments(),
 
+          const SizedBox(height: 20),
+
+          // VLC-style video filters
+          _buildVLCFilters(),
+
           const SizedBox(height: 16),
 
-          // Reset button
-          _buildResetButton(),
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _resetToDefault,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.1),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Reset'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _saveCurrentAsPreset,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Save Preset'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -414,20 +524,117 @@ class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
     );
   }
 
-  Widget _buildResetButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _resetToDefault,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white.withOpacity(0.1),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+  Widget _buildVLCFilters() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'VLC-Style Filters',
+          style: TextStyle(
+              color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
         ),
-        child: const Text('Reset to Default'),
-      ),
+        const SizedBox(height: 12),
+        
+        // Rotation
+        if (widget.onRotationChanged != null) ...[
+          _buildRotationSelector(),
+          const SizedBox(height: 12),
+        ],
+        
+        // Deinterlace
+        if (widget.onDeinterlaceChanged != null) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.screen_rotation, color: Colors.white70, size: 16),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Deinterlace',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ],
+              ),
+              Switch(
+                value: widget.deinterlace,
+                onChanged: widget.onDeinterlaceChanged,
+                activeColor: Theme.of(context).colorScheme.primary,
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
+
+  Widget _buildRotationSelector() {
+    final rotations = [0.0, 90.0, 180.0, 270.0];
+    final rotationLabels = ['0°', '90°', '180°', '270°'];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.rotate_right, color: Colors.white70, size: 16),
+            const SizedBox(width: 8),
+            const Text(
+              'Rotation',
+              style: TextStyle(color: Colors.white, fontSize: 12),
+            ),
+            const Spacer(),
+            Text(
+              '${widget.rotation.toInt()}°',
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: rotations.asMap().entries.map((entry) {
+            final index = entry.key;
+            final rotation = entry.value;
+            final isSelected = (widget.rotation - rotation).abs() < 0.1;
+            
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: InkWell(
+                  onTap: () => widget.onRotationChanged?.call(rotation),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: isSelected
+                          ? Border.all(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2)
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        rotationLabels[index],
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.white70,
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
 }

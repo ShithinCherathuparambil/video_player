@@ -1,5 +1,4 @@
 import 'package:lumeo/domain/repositories/settings_repository.dart';
-import 'package:lumeo/domain/entities/app_settings.dart';
 
 class SaveSubtitlesEnabled {
   final SettingsRepository repository;

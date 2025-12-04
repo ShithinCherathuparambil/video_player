@@ -196,6 +196,7 @@ class _AdvancedFeaturesPanelState extends State<AdvancedFeaturesPanel> {
                   ]),
                   const SizedBox(height: 20),
                   _buildControlSection('Quality & Tracks', [
+                    // Quality selector - can be enhanced for network streams
                     _buildDropdownRow('Video Quality', widget.selectedQuality,
                         _qualities, widget.onQualityChanged),
                     _buildDropdownRow('Audio Track', widget.selectedAudioTrack,

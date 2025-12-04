@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:async';
-import 'dart:io';
 import 'package:lumeo/domain/entities/video_file.dart';
 import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
 import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_event.dart';
@@ -13,6 +13,10 @@ import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_event.dart';
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_state.dart';
 import 'package:lumeo/core/services/bloc_communication_service.dart';
+import 'package:lumeo/presentation/widgets/glassmorphism/glass_container.dart';
+import 'package:lumeo/presentation/widgets/lazy_thumbnail.dart';
+import 'package:lumeo/core/utils/micro_interactions.dart';
+import 'package:lumeo/core/utils/video_utils.dart';
 
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});
@@ -71,107 +75,142 @@ class _FavoritesPageState extends State<FavoritesPage> {
     }
   }
 
-  void _handleRemoveFromFavorites(VideoFile video) {
-    if (!_isSelectionMode) {
-      _showFeedback('Removing from favorites...');
-      context.read<FavoritesBloc>().add(InstantRemoveFromFavorites(video.path));
-      // Update the video list state
-      context.read<VideoListBloc>().add(RefreshFromFavorites());
-    }
-  }
-
-  void _showFeedback(String message, {bool isError = false}) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
-        duration: Duration(seconds: isError ? 4 : 2),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return GradientBackground(
-      child: Scaffold(
+    return GradientScaffold(
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: Text(
-            _isSelectionMode
-                ? '${_selectedVideos.length} selected'
-                : 'Favorites',
-            style: const TextStyle(color: Colors.white),
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                Theme.of(context).colorScheme.secondary.withOpacity(0.05),
+              ],
+            ),
           ),
-          leading: _isSelectionMode
-              ? IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: _cancelSelection,
-                )
-              : null,
-          actions: _isSelectionMode
-              ? [
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.white),
-                    onPressed: _deleteSelected,
-                  ),
-                ]
-              : [
-                  IconButton(
-                    icon: const Icon(Icons.refresh, color: Colors.white),
-                    onPressed: () {
-                      context
-                          .read<FavoritesBloc>()
-                          .add(const RefreshFavorites());
-                    },
-                  ),
-                ],
         ),
-        body: BlocBuilder<FavoritesBloc, FavoritesState>(
-          builder: (context, state) {
-            if (state is FavoritesLoading) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (state is FavoritesError) {
-              return Center(
+        title: Text(
+          _isSelectionMode
+              ? '${_selectedVideos.length} selected'
+              : 'Favorites',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () {
+                  MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
+                  _cancelSelection();
+                },
+              )
+            : null,
+        actions: _isSelectionMode
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.white),
+                  onPressed: () {
+                    MicroInteractions.hapticFeedback(type: HapticFeedbackType.mediumImpact);
+                    _deleteSelected();
+                  },
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  onPressed: () {
+                    MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
+                    context
+                        .read<FavoritesBloc>()
+                        .add(const RefreshFavorites());
+                  },
+                ),
+              ],
+      ),
+      body: BlocBuilder<FavoritesBloc, FavoritesState>(
+        builder: (context, state) {
+          if (state is FavoritesLoading) {
+            return Center(
+              child: GlassContainer(
+                padding: const EdgeInsets.all(24),
+                child: const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+            );
+          } else if (state is FavoritesError) {
+            return Center(
+              child: GlassContainer(
+                padding: const EdgeInsets.all(32),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.error_outline,
-                        size: 48, color: Colors.red),
+                        size: 64, color: Colors.red),
                     const SizedBox(height: 16),
-                    Text(state.message,
-                        style: const TextStyle(color: Colors.red)),
-                  ],
-                ),
-              );
-            } else if (state is FavoritesEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.favorite_border, size: 48, color: Colors.grey),
-                    SizedBox(height: 16),
                     Text(
-                      'No favorites yet',
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                      state.message,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-              );
-            } else if (state is FavoritesLoaded) {
-              return RefreshIndicator(
-                onRefresh: () async {
-                  context.read<FavoritesBloc>().add(const RefreshFavorites());
-                },
-                child: _buildGridView(state.favorites),
-              );
-            }
-            return const SizedBox.shrink();
-          },
-        ),
+              ),
+            );
+          } else if (state is FavoritesEmpty) {
+            return Center(
+              child: GlassContainer(
+                padding: EdgeInsets.all(40.w),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.favorite_border,
+                      size: 80.w,
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                    ),
+                    SizedBox(height: 24.h),
+                    Text(
+                      'No favorites yet',
+                      style: TextStyle(
+                        fontSize: 20.sp,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      'Double-tap videos to add them',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          } else if (state is FavoritesLoaded) {
+            return RefreshIndicator(
+              onRefresh: () async {
+                context.read<FavoritesBloc>().add(const RefreshFavorites());
+              },
+              color: Theme.of(context).colorScheme.primary,
+              child: _buildGridView(state.favorites),
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
@@ -199,6 +238,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     return GestureDetector(
       onTap: () {
         if (_isSelectionMode) {
+          MicroInteractions.hapticFeedback(type: HapticFeedbackType.selectionClick);
           _toggleSelection(video.path);
         } else {
           Navigator.push(
@@ -214,11 +254,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
       },
       onLongPress: () {
         if (!_isSelectionMode) {
+          MicroInteractions.hapticFeedback(type: HapticFeedbackType.mediumImpact);
           _toggleSelection(video.path);
         }
       },
       onDoubleTap: () {
         if (_selectedVideos.isEmpty) {
+          MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
           final wasInFavorites = video.isFavorite;
 
           // Update video list state
@@ -240,28 +282,19 @@ class _FavoritesPageState extends State<FavoritesPage> {
               ),
               backgroundColor: wasInFavorites ? Colors.orange : Colors.green,
               duration: const Duration(seconds: 1),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
         }
       },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: Theme.of(context).colorScheme.surface,
-          border: isSelected
-              ? Border.all(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 2,
-                )
-              : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+      child: GlassContainer(
+        depth: isSelected ? 2 : 1,
+        borderRadius: BorderRadius.circular(20),
+        padding: EdgeInsets.zero,
+        margin: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -270,64 +303,42 @@ class _FavoritesPageState extends State<FavoritesPage> {
               flex: 3,
               child: Stack(
                 children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
                     ),
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16),
+                    child: LazyThumbnail(
+                      videoPath: video.path,
+                      thumbnailPath: video.thumbnailPath,
+                      thumbnailBytes: video.thumbnailBytes,
+                      width: null,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: Container(
+                        width: double.infinity,
+                        height: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.4),
+                              Theme.of(context)
+                                  .colorScheme
+                                  .secondary
+                                  .withOpacity(0.4),
+                            ],
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.play_circle_outline,
+                          size: 48,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
                       ),
-                      child: video.thumbnailBytes != null
-                          ? Image.memory(
-                              video.thumbnailBytes!,
-                              width: double.infinity,
-                              height: double.infinity,
-                              fit: BoxFit.cover,
-                            )
-                          : video.thumbnailPath != null
-                              ? Image.file(
-                                  File(video.thumbnailPath!),
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  fit: BoxFit.cover,
-                                )
-                              : Container(
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withOpacity(0.3),
-                                        Theme.of(context)
-                                            .colorScheme
-                                            .secondary
-                                            .withOpacity(0.3),
-                                      ],
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    Icons.play_circle_outline,
-                                    size: 48,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
                     ),
                   ),
                   // Status indicator
@@ -338,6 +349,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   ),
                   // Favorite indicator (always visible in favorites)
                   BlocBuilder<VideoListBloc, VideoListState>(
+                    key: ValueKey('favorite_fav_${video.path}'),
                     builder: (context, state) {
                       if (state is VideoListLoaded) {
                         final currentVideo = state.videos.firstWhere(
@@ -375,7 +387,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                       return const SizedBox.shrink();
                     },
                   ),
-                  // Resume indicator
+                  // Resume progress bar
                   if (video.lastPlayedPosition != null &&
                       video.duration != null)
                     Positioned(
@@ -383,11 +395,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
                       left: 0,
                       right: 0,
                       child: Container(
-                        height: 4,
+                        height: 3,
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withOpacity(0.5),
                           borderRadius: const BorderRadius.vertical(
-                            bottom: Radius.circular(16),
+                            bottom: Radius.circular(20),
                           ),
                         ),
                         child: FractionallySizedBox(
@@ -397,9 +409,14 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   video.duration!.inMilliseconds,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
+                              gradient: LinearGradient(
+                                colors: [
+                                  Theme.of(context).colorScheme.primary,
+                                  Theme.of(context).colorScheme.secondary,
+                                ],
+                              ),
                               borderRadius: const BorderRadius.vertical(
-                                bottom: Radius.circular(16),
+                                bottom: Radius.circular(20),
                               ),
                             ),
                           ),
@@ -408,29 +425,41 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     ),
                   // Selection indicator
                   if (isSelected)
-                    Positioned(
-                      top: 8,
-                      right: 8,
+                    Positioned.fill(
                       child: Container(
-                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withOpacity(0.3),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 3,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 16,
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.5),
+                                  blurRadius: 12,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -440,75 +469,106 @@ class _FavoritesPageState extends State<FavoritesPage> {
             // Video info
             Expanded(
               flex: 2,
-              child: Padding(
+              child: Container(
                 padding: const EdgeInsets.all(12),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        video.name,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      if (video.duration != null)
-                        Text(
-                          _formatDuration(video.duration!),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      const SizedBox(height: 4),
-                      if (video.fileSize != null)
-                        Text(
-                          _formatFileSize(video.fileSize!),
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      if (video.dateAdded != null)
-                        Text(
-                          _formatDate(video.dateAdded!),
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      // Resume text
-                      if (video.lastPlayedPosition != null &&
-                          video.status != VideoStatus.lastWatched)
-                        Text(
-                          'Resume from ${_formatDuration(video.lastPlayedPosition!)}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(20),
                   ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              video.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 6),
+                            if (video.duration != null)
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.access_time,
+                                    size: 14,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    VideoUtils.formatDuration(video.duration!),
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            if (video.fileSize != null) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.storage,
+                                    size: 14,
+                                    color: Colors.white.withOpacity(0.7),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _formatFileSize(video.fileSize!),
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.7),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Resume indicator
+                    if (video.lastPlayedPosition != null &&
+                        video.duration != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.play_arrow,
+                              size: 14,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                'Resume from ${VideoUtils.formatDuration(video.lastPlayedPosition!)}',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 11,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -544,10 +604,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
         indicatorIcon = Icons.done_all;
         tooltipText = 'Watched';
         break;
-      default:
-        indicatorColor = Colors.grey;
-        indicatorIcon = Icons.circle;
-        tooltipText = 'Unknown';
     }
 
     return Tooltip(
@@ -574,19 +630,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
     );
   }
 
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes % 60;
-    final seconds = duration.inSeconds % 60;
-
-    if (hours > 0) {
-      return '${hours}h ${minutes}m';
-    } else if (minutes > 0) {
-      return '${minutes}m ${seconds}s';
-    } else {
-      return '${seconds}s';
-    }
-  }
 
   String _formatFileSize(int bytes) {
     if (bytes < 1024) {
@@ -600,25 +643,4 @@ class _FavoritesPageState extends State<FavoritesPage> {
     }
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Today';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
-    } else if (difference.inDays < 30) {
-      final weeks = (difference.inDays / 7).floor();
-      return '$weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
-    } else if (difference.inDays < 365) {
-      final months = (difference.inDays / 30).floor();
-      return '$months ${months == 1 ? 'month' : 'months'} ago';
-    } else {
-      final years = (difference.inDays / 365).floor();
-      return '$years ${years == 1 ? 'year' : 'years'} ago';
-    }
-  }
 }

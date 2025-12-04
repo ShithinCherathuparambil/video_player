@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:lumeo/domain/usecases/check_authentication_required.dart';
-import 'package:lumeo/data/repositories/settings_repository_impl.dart';
-import 'package:lumeo/data/datasources/settings_local_data_source.dart';
-import 'package:lumeo/presentation/screens/auth_overlay_screen.dart';
-import 'package:lumeo/main.dart' show navigatorKey;
 
 /// Manages app-wide authentication based on app lifecycle
+///
+/// NOTE: Authentication has been disabled in this app. This manager is now a
+/// no-op shim kept only to avoid touching all call sites. It no longer shows
+/// any authentication UI or blocks navigation.
 class AppAuthenticationManager with WidgetsBindingObserver {
   static final AppAuthenticationManager _instance =
       AppAuthenticationManager._internal();
   factory AppAuthenticationManager() => _instance;
   AppAuthenticationManager._internal();
 
-  late final CheckAuthenticationRequired _checkAuthRequired;
   bool _isInitialized = false;
   bool _isAuthOverlayVisible = false;
   bool _wasInBackground = false;
@@ -24,166 +22,23 @@ class AppAuthenticationManager with WidgetsBindingObserver {
   void initialize() {
     if (_isInitialized) return;
 
-    _checkAuthRequired = CheckAuthenticationRequired(
-      SettingsRepositoryImpl(localDataSource: SettingsLocalDataSourceImpl()),
-    );
-
-    WidgetsBinding.instance.addObserver(this);
     _isInitialized = true;
   }
 
   /// Dispose the authentication manager
   void dispose() {
-    if (_isInitialized) {
-      WidgetsBinding.instance.removeObserver(this);
-      _isInitialized = false;
-    }
+    _isInitialized = false;
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // No-op: authentication disabled
     super.didChangeAppLifecycleState(state);
-
-    switch (state) {
-      case AppLifecycleState.paused:
-      case AppLifecycleState.inactive:
-        // App is going to background
-        _wasInBackground = true;
-        debugPrint('AppAuthenticationManager: App going to background');
-        break;
-
-      case AppLifecycleState.resumed:
-        // App is coming back to foreground
-        debugPrint(
-            'AppAuthenticationManager: App resumed, _wasInBackground=$_wasInBackground, _isAuthOverlayVisible=$_isAuthOverlayVisible, _isInitialAppStartup=$_isInitialAppStartup, _hasAuthenticatedOnSplash=$_hasAuthenticatedOnSplash');
-
-        // Skip authentication during initial app startup to avoid double authentication
-        if (_isInitialAppStartup) {
-          debugPrint(
-              'AppAuthenticationManager: Skipping authentication during initial startup');
-          _isInitialAppStartup = false;
-          return;
-        }
-
-        // Skip authentication if we just authenticated during splash screen
-        if (_hasAuthenticatedOnSplash) {
-          debugPrint(
-              'AppAuthenticationManager: Skipping authentication - already authenticated during splash');
-          _wasInBackground = false;
-          return;
-        }
-
-        if (_wasInBackground && !_isAuthOverlayVisible) {
-          // Add a small delay to ensure the app is fully resumed
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (_wasInBackground && !_isAuthOverlayVisible) {
-              debugPrint(
-                  'AppAuthenticationManager: Checking authentication after delay');
-              _checkAndShowAuthentication();
-            }
-          });
-        }
-        break;
-
-      case AppLifecycleState.detached:
-        // App is being terminated - reset all authentication state
-        _wasInBackground = false;
-        _hasAuthenticatedThisSession = false;
-        _hasAuthenticatedOnSplash = false;
-        _isInitialAppStartup = true;
-        _isAuthOverlayVisible = false;
-        debugPrint(
-            'AppAuthenticationManager: App terminated, resetting authentication state');
-        break;
-
-      case AppLifecycleState.hidden:
-        // App is hidden (iOS specific)
-        _wasInBackground = true;
-        break;
-    }
-  }
-
-  /// Check if authentication is required and show overlay if needed
-  Future<void> _checkAndShowAuthentication() async {
-    try {
-      debugPrint(
-          'AppAuthenticationManager: Checking if authentication is required...');
-      final bool authRequired = await _checkAuthRequired();
-      debugPrint(
-          'AppAuthenticationManager: Authentication required = $authRequired');
-
-      // Show authentication if required and not already visible
-      // Background authentication should always trigger if auth is enabled
-      if (authRequired &&
-          !_isAuthOverlayVisible &&
-          !_hasAuthenticatedThisSession) {
-        debugPrint(
-            'AppAuthenticationManager: Showing authentication for background return');
-        _showAuthOverlay();
-      } else {
-        debugPrint(
-            'AppAuthenticationManager: Not showing authentication - authRequired=$authRequired, _isAuthOverlayVisible=$_isAuthOverlayVisible, _hasAuthenticatedThisSession=$_hasAuthenticatedThisSession');
-      }
-    } catch (e) {
-      // Handle error silently - don't block app usage
-      debugPrint('Error checking authentication requirement: $e');
-    }
-  }
-
-  /// Show the authentication overlay
-  void _showAuthOverlay() {
-    if (_isAuthOverlayVisible) return;
-
-    final navigator = navigatorKey.currentState;
-    if (navigator == null) return;
-
-    _isAuthOverlayVisible = true;
-
-    // Use a route instead of overlay for better lifecycle management
-    navigator.push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            AuthOverlayScreen(
-          onAuthenticationSuccess: () {
-            _removeAuthOverlay();
-            _wasInBackground = false;
-            debugPrint(
-                'AppAuthenticationManager: Background authentication successful');
-          },
-          onAuthenticationFailed: () {
-            _removeAuthOverlay();
-            _wasInBackground = false;
-            debugPrint(
-                'AppAuthenticationManager: Background authentication failed');
-          },
-        ),
-        transitionDuration: const Duration(milliseconds: 300),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        opaque: true,
-        barrierDismissible: false,
-        fullscreenDialog: true,
-      ),
-    );
-  }
-
-  /// Remove the authentication overlay
-  void _removeAuthOverlay() {
-    if (_isAuthOverlayVisible) {
-      final navigator = navigatorKey.currentState;
-      if (navigator != null && navigator.canPop()) {
-        navigator.pop();
-      }
-    }
-    _isAuthOverlayVisible = false;
   }
 
   /// Force show authentication (useful for testing or manual triggers)
   void forceShowAuthentication() {
-    if (!_isAuthOverlayVisible) {
-      _showAuthOverlay();
-    }
+    // No-op: authentication disabled
   }
 
   /// Check if authentication overlay is currently visible

@@ -91,11 +91,22 @@ class InstantRemoveFromList extends VideoListEvent {
   List<Object?> get props => [videoPath];
 }
 
-// Future: Add events like RefreshVideos, FilterVideos, etc.
-// class RefreshVideos extends VideoListEvent {}
-// class FilterVideos extends VideoListEvent {
-//   final String query;
-//   const FilterVideos(this.query);
-//   @override
-//   List<Object> get props => [query];
-// }
+enum VideoSortOption {
+  nameAscending,
+  nameDescending,
+  dateAscending,
+  dateDescending,
+  sizeAscending,
+  sizeDescending,
+  durationAscending,
+  durationDescending,
+}
+
+class SortVideos extends VideoListEvent {
+  final VideoSortOption sortOption;
+
+  const SortVideos(this.sortOption);
+
+  @override
+  List<Object?> get props => [sortOption];
+}

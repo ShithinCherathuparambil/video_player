@@ -29,6 +29,7 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
     on<DeleteMultipleVideos>(_onDeleteMultipleVideos);
     on<RefreshFromFavorites>(_onRefreshFromFavorites);
     on<InstantRemoveFromList>(_onInstantRemoveFromList);
+    on<SortVideos>(_onSortVideos);
 
     // Automatically load videos when BLoC is created
     add(const LoadVideos());
@@ -235,8 +236,6 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
     if (state is! VideoListLoaded) return;
 
     try {
-      debugPrint(
-          'VideoListBloc: ToggleFavorite called for video: ${event.videoPath}');
       final currentState = state as VideoListLoaded;
       final currentVideos = currentState.videos;
 
@@ -247,9 +246,6 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
         // Create updated video with toggled favorite status
         final video = currentVideos[videoIndex];
         final updatedVideo = video.copyWith(isFavorite: !video.isFavorite);
-
-        debugPrint(
-            'VideoListBloc: Video ${event.videoPath} - Previous favorite: ${video.isFavorite}, New favorite: ${updatedVideo.isFavorite}');
 
         // Update the videos in both lists while maintaining references
         final updatedVideos = List<VideoFile>.from(currentVideos);
@@ -272,14 +268,13 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
         }
 
         // Emit new state while preserving the current view state
+        // Create a new list instance to ensure state change is detected
+        final newVideosList = List<VideoFile>.from(updatedVideos);
         emit(VideoListLoaded(
-          updatedVideos,
+          newVideosList,
           hasMore: currentState.hasMore,
           isLoadingMore: currentState.isLoadingMore,
         ));
-
-        debugPrint(
-            'VideoListBloc: Emitted new VideoListLoaded state with ${updatedVideos.length} videos');
 
         // Update repository in background without blocking UI
         try {
@@ -291,9 +286,6 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
           debugPrint('Error updating favorite status in repository: $e');
           // Don't emit error state since UI is already updated
         }
-      } else {
-        debugPrint(
-            'VideoListBloc: Video ${event.videoPath} not found in current visible list');
       }
     } catch (e) {
       debugPrint('Error toggling favorite: $e');
@@ -414,6 +406,67 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
     // Force reload videos
     _isInitialized = false;
     add(const LoadVideos(forceRefresh: true));
+  }
+
+  void _onSortVideos(SortVideos event, Emitter<VideoListState> emit) {
+    if (state is! VideoListLoaded) return;
+
+    final currentState = state as VideoListLoaded;
+    final sortedVideos = List<VideoFile>.from(currentState.videos);
+
+    switch (event.sortOption) {
+      case VideoSortOption.nameAscending:
+        sortedVideos.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        break;
+      case VideoSortOption.nameDescending:
+        sortedVideos.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+        break;
+      case VideoSortOption.dateAscending:
+        sortedVideos.sort((a, b) {
+          final aDate = a.dateAdded ?? DateTime(1970);
+          final bDate = b.dateAdded ?? DateTime(1970);
+          return aDate.compareTo(bDate);
+        });
+        break;
+      case VideoSortOption.dateDescending:
+        sortedVideos.sort((a, b) {
+          final aDate = a.dateAdded ?? DateTime(1970);
+          final bDate = b.dateAdded ?? DateTime(1970);
+          return bDate.compareTo(aDate);
+        });
+        break;
+      case VideoSortOption.sizeAscending:
+        sortedVideos.sort((a, b) {
+          final aSize = a.fileSize ?? 0;
+          final bSize = b.fileSize ?? 0;
+          return aSize.compareTo(bSize);
+        });
+        break;
+      case VideoSortOption.sizeDescending:
+        sortedVideos.sort((a, b) {
+          final aSize = a.fileSize ?? 0;
+          final bSize = b.fileSize ?? 0;
+          return bSize.compareTo(aSize);
+        });
+        break;
+      case VideoSortOption.durationAscending:
+        sortedVideos.sort((a, b) {
+          final aDuration = a.duration?.inMilliseconds ?? 0;
+          final bDuration = b.duration?.inMilliseconds ?? 0;
+          return aDuration.compareTo(bDuration);
+        });
+        break;
+      case VideoSortOption.durationDescending:
+        sortedVideos.sort((a, b) {
+          final aDuration = a.duration?.inMilliseconds ?? 0;
+          final bDuration = b.duration?.inMilliseconds ?? 0;
+          return bDuration.compareTo(aDuration);
+        });
+        break;
+    }
+
+    _allVideos = sortedVideos;
+    emit(VideoListLoaded(sortedVideos, hasMore: currentState.hasMore));
   }
 
   Future<void> _onInstantRemoveFromList(

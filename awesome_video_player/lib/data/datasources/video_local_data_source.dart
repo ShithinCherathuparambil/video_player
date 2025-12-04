@@ -176,16 +176,17 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
 
           String? thumbnailPath;
           Uint8List? thumbnailBytes;
-          Duration? duration;
+
+          // Use PhotoManager metadata duration (fast, no heavy decoding)
+          Duration? duration =
+              entity.duration > 0 ? Duration(seconds: entity.duration) : null;
 
           if (videos.length < 10) {
             if (Platform.isIOS) {
               thumbnailBytes = await entity
-                  .thumbnailDataWithSize(const ThumbnailSize(120, 120));
-              duration = await _getDuration(file.path);
+                  .thumbnailDataWithSize(const ThumbnailSize(240, 240));
             } else {
               thumbnailPath = await _generateThumbnail(file.path);
-              duration = await _getDuration(file.path);
             }
 
             if (thumbnailPath != null &&
@@ -273,8 +274,10 @@ class VideoLocalDataSourceImpl implements VideoLocalDataSource {
         video: videoPath,
         thumbnailPath: thumbnailPath,
         imageFormat: ImageFormat.JPEG,
-        maxHeight: 120,
-        quality: 30,
+        maxHeight: 240,
+        maxWidth: 240,
+        // Use maximum JPEG quality for sharp thumbnails
+        quality: 100,
         timeMs: 1000,
       );
 

@@ -17,7 +17,8 @@
         android:label="Lumeo"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:requestLegacyExternalStorage="false">
+        android:requestLegacyExternalStorage="false"
+        android:enableOnBackInvokedCallback="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -37,6 +38,44 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            
+            <!-- Intent filter for viewing video files -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <!-- Video MIME types -->
+                <data android:mimeType="video/*"/>
+            </intent-filter>
+            
+            <!-- Intent filter for specific video file extensions -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="file"/>
+                <data android:pathPattern=".*\\.mp4"/>
+                <data android:pathPattern=".*\\.mkv"/>
+                <data android:pathPattern=".*\\.avi"/>
+                <data android:pathPattern=".*\\.flv"/>
+                <data android:pathPattern=".*\\.wmv"/>
+                <data android:pathPattern=".*\\.mov"/>
+                <data android:pathPattern=".*\\.webm"/>
+                <data android:pathPattern=".*\\.m4v"/>
+                <data android:pathPattern=".*\\.3gp"/>
+                <data android:pathPattern=".*\\.ts"/>
+                <data android:pathPattern=".*\\.mts"/>
+                <data android:pathPattern=".*\\.m2ts"/>
+            </intent-filter>
+            
+            <!-- Intent filter for content:// URIs (from file managers, etc.) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="content"/>
+                <data android:mimeType="video/*"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

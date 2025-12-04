@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lumeo/core/services/audio_equalizer_service.dart';
 
 class AudioEqualizer extends StatefulWidget {
   final List<double> frequencies;
@@ -30,46 +31,38 @@ class AudioEqualizer extends StatefulWidget {
 }
 
 class _AudioEqualizerState extends State<AudioEqualizer> {
+  final AudioEqualizerService _equalizerService = AudioEqualizerService();
   late List<double> _gains;
   String _selectedPreset = 'Flat';
-
-  final Map<String, List<double>> _presets = {
-    'Flat': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    'Pop': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    'Rock': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    'Jazz': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    'Classical': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    'Electronic': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    'Bass Boost': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    'Treble Boost': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-  };
+  Map<String, List<double>> _presets = {};
 
   @override
   void initState() {
     super.initState();
     _gains = List.from(widget.gains);
-    _initializePresets();
+    _loadPresets();
+    _loadCurrentPreset();
   }
 
-  void _initializePresets() {
-    _presets['Pop'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    _presets['Rock'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    _presets['Jazz'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    _presets['Classical'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    _presets['Electronic'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    _presets['Bass Boost'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    _presets['Treble Boost'] = [
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    ];
+  Future<void> _loadPresets() async {
+    final presets = await _equalizerService.getPresets();
+    setState(() {
+      _presets = presets;
+    });
+  }
+
+  Future<void> _loadCurrentPreset() async {
+    final currentPreset = await _equalizerService.getCurrentPreset();
+    if (currentPreset != null) {
+      final presetGains = _presets[currentPreset];
+      if (presetGains != null) {
+        setState(() {
+          _selectedPreset = currentPreset;
+          _gains = List.from(presetGains);
+        });
+        widget.onGainsChanged(_gains);
+      }
+    }
   }
 
   void _onGainChanged(int index, double value) {
@@ -77,15 +70,66 @@ class _AudioEqualizerState extends State<AudioEqualizer> {
       _gains[index] = value;
     });
     widget.onGainsChanged(_gains);
+    _equalizerService.saveGains(_gains);
   }
 
   void _onPresetChanged(String preset) {
-    setState(() {
-      _selectedPreset = preset;
-      _gains = List.from(_presets[preset]!);
-    });
-    widget.onGainsChanged(_gains);
-    widget.onPresetChanged?.call();
+    final presetGains = _presets[preset];
+    if (presetGains != null) {
+      setState(() {
+        _selectedPreset = preset;
+        _gains = List.from(presetGains);
+      });
+      widget.onGainsChanged(_gains);
+      _equalizerService.saveCurrentPreset(preset);
+      _equalizerService.saveGains(_gains);
+      widget.onPresetChanged?.call();
+    }
+  }
+
+  Future<void> _saveCurrentAsPreset() async {
+    final nameController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save Preset'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            hintText: 'Preset name',
+            labelText: 'Name',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (nameController.text.isNotEmpty) {
+                Navigator.pop(context, nameController.text);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      await _equalizerService.savePreset(result, _gains);
+      await _loadPresets();
+      setState(() {
+        _selectedPreset = result;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Preset "$result" saved'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
   void _resetToFlat() {
@@ -141,8 +185,38 @@ class _AudioEqualizerState extends State<AudioEqualizer> {
 
           const SizedBox(height: 16),
 
-          // Reset button
-          _buildResetButton(),
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _resetToFlat,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.1),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Reset'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _saveCurrentAsPreset,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Save Preset'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -263,20 +337,4 @@ class _AudioEqualizerState extends State<AudioEqualizer> {
     );
   }
 
-  Widget _buildResetButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _resetToFlat,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white.withOpacity(0.1),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        child: const Text('Reset to Flat'),
-      ),
-    );
-  }
 }

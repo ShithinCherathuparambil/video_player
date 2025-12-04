@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lumeo/domain/entities/video_file.dart';
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_event.dart';
@@ -12,7 +13,6 @@ import 'package:lumeo/presentation/blocs/theme_bloc/theme_event.dart';
 import 'package:lumeo/presentation/blocs/theme_bloc/theme_state.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
-import 'dart:io';
 import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_bloc.dart';
 import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_event.dart';
 import './favorites_page.dart';
@@ -20,6 +20,12 @@ import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
 import 'package:lumeo/presentation/widgets/delete_confirmation_dialog.dart';
 import 'package:lumeo/core/services/bloc_communication_service.dart';
 import 'package:lumeo/presentation/widgets/gradient_background.dart';
+import 'package:lumeo/presentation/widgets/continue_watching_section.dart';
+import 'package:lumeo/presentation/widgets/recently_watched_section.dart';
+import 'package:lumeo/core/utils/micro_interactions.dart';
+import 'package:flutter/services.dart';
+import 'package:lumeo/presentation/screens/playback_history_page.dart';
+import 'package:lumeo/presentation/widgets/lazy_thumbnail.dart';
 
 class VideoListPage extends StatefulWidget {
   const VideoListPage({super.key});
@@ -150,6 +156,98 @@ class _VideoListPageState extends State<VideoListPage>
         actions: [
           if (_selectedVideos.isEmpty) ...[
             // Normal mode actions
+            PopupMenuButton<VideoSortOption>(
+              icon: const Icon(Icons.sort),
+              tooltip: 'Sort videos',
+              onSelected: (option) {
+                context.read<VideoListBloc>().add(SortVideos(option));
+                MicroInteractions.hapticFeedback(
+                  type: HapticFeedbackType.selectionClick,
+                );
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: VideoSortOption.nameAscending,
+                  child: Row(
+                    children: [
+                      Icon(Icons.sort_by_alpha, size: 20),
+                      SizedBox(width: 8),
+                      Text('Name (A-Z)'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: VideoSortOption.nameDescending,
+                  child: Row(
+                    children: [
+                      Icon(Icons.sort_by_alpha, size: 20),
+                      SizedBox(width: 8),
+                      Text('Name (Z-A)'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: VideoSortOption.dateDescending,
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 20),
+                      SizedBox(width: 8),
+                      Text('Date (Newest)'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: VideoSortOption.dateAscending,
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 20),
+                      SizedBox(width: 8),
+                      Text('Date (Oldest)'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: VideoSortOption.sizeDescending,
+                  child: Row(
+                    children: [
+                      Icon(Icons.storage, size: 20),
+                      SizedBox(width: 8),
+                      Text('Size (Largest)'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: VideoSortOption.sizeAscending,
+                  child: Row(
+                    children: [
+                      Icon(Icons.storage, size: 20),
+                      SizedBox(width: 8),
+                      Text('Size (Smallest)'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: VideoSortOption.durationDescending,
+                  child: Row(
+                    children: [
+                      Icon(Icons.timer, size: 20),
+                      SizedBox(width: 8),
+                      Text('Duration (Longest)'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: VideoSortOption.durationAscending,
+                  child: Row(
+                    children: [
+                      Icon(Icons.timer, size: 20),
+                      SizedBox(width: 8),
+                      Text('Duration (Shortest)'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             IconButton(
               icon: const Icon(Icons.refresh),
               onPressed: () {
@@ -174,6 +272,23 @@ class _VideoListPageState extends State<VideoListPage>
                     ),
                   ),
                 );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'Playback History',
+              onPressed: () {
+                final currentState = context.read<VideoListBloc>().state;
+                if (currentState is VideoListLoaded) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PlaybackHistoryPage(
+                        allVideos: currentState.videos,
+                      ),
+                    ),
+                  );
+                }
               },
             ),
             BlocBuilder<ThemeBloc, ThemeState>(
@@ -226,9 +341,12 @@ class _VideoListPageState extends State<VideoListPage>
                 children: [
                   // Enhanced search bar with modern styling
                   Container(
-                    margin: const EdgeInsets.all(16),
+                    margin: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 12.h,
+                    ),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(16.r),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.1),
@@ -305,16 +423,7 @@ class _VideoListPageState extends State<VideoListPage>
   Widget _buildVideoContent(
       BuildContext context, VideoListState videoState, bool isGridView) {
     if (videoState is VideoListLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Loading videos...'),
-          ],
-        ),
-      );
+      return _buildShimmerLoading(isGridView);
     } else if (videoState is VideoListError) {
       return Center(
         child: Column(
@@ -392,17 +501,148 @@ class _VideoListPageState extends State<VideoListPage>
             scale: isGridView
                 ? _gridScaleAnimation.value
                 : _listScaleAnimation.value,
-            child: isGridView
-                ? _buildVideoGrid(context, videos)
-                : _buildVideoListView(context, videos),
+            child: ListView(
+              controller: _scrollController,
+              children: [
+                // Continue Watching Section
+                ContinueWatchingSection(allVideos: videos),
+                const SizedBox(height: 16),
+                // Recently Watched Section
+                RecentlyWatchedSection(allVideos: videos),
+                const SizedBox(height: 16),
+                // Main video list/grid
+                isGridView
+                    ? _buildVideoGrid(context, videos)
+                    : _buildVideoListView(context, videos),
+              ],
+            ),
           );
         },
       );
     }
 
     // Default loading state
-    return const Center(
-      child: CircularProgressIndicator(),
+    return _buildShimmerLoading(isGridView);
+  }
+
+  Widget _buildShimmerLoading(bool isGridView) {
+    return isGridView
+        ? GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.7,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: 6,
+            itemBuilder: (context, index) => _buildShimmerCard(),
+          )
+        : ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            itemCount: 6,
+            itemBuilder: (context, index) => Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: _buildShimmerListCard(),
+            ),
+          );
+  }
+
+  Widget _buildShimmerCard() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.grey.withOpacity(0.1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 120,
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
+              color: Colors.grey.withOpacity(0.2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 16,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 12,
+                  width: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShimmerListCard() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.grey.withOpacity(0.1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey.withOpacity(0.2),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 16,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 12,
+                  width: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -410,72 +650,114 @@ class _VideoListPageState extends State<VideoListPage>
     final state = context.read<VideoListBloc>().state;
     final isLoadingMore = state is VideoListLoaded && state.isLoadingMore;
 
-    return Column(
-      children: [
-        Expanded(
-          child: GridView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio:
-                  0.7, // Reduced from 0.8 to give more vertical space
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: videos.length + (isLoadingMore ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index >= videos.length) {
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  child: const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-              final video = videos[index];
-              return _buildVideoCard(context, video);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVideoListView(BuildContext context, List<VideoFile> videos) {
-    return Column(
-      children: [
-        Expanded(
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(16),
-            itemCount: videos.length,
-            itemBuilder: (context, index) {
-              final video = videos[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: _buildListCard(context, video),
-              );
-            },
-          ),
-        ),
-        // Loading indicator
-        if (_isLoadingMore)
-          Container(
+    // Remove Column/Expanded wrapper since this is inside a ListView (unbounded height)
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio:
+            0.7, // Reduced from 0.8 to give more vertical space
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: videos.length + (isLoadingMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index >= videos.length) {
+          return Container(
             padding: const EdgeInsets.all(16),
             child: const Center(
               child: CircularProgressIndicator(),
             ),
-          ),
-      ],
+          );
+        }
+        final video = videos[index];
+        return _buildVideoCard(context, video);
+      },
+    );
+  }
+
+  Widget _buildVideoListView(BuildContext context, List<VideoFile> videos) {
+    final state = context.read<VideoListBloc>().state;
+    final isLoadingMore = state is VideoListLoaded && state.isLoadingMore;
+    
+    // Remove Column/Expanded wrapper since this is inside a ListView (unbounded height)
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      itemCount: videos.length + (isLoadingMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index >= videos.length) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        final video = videos[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: _buildListCard(context, video),
+        );
+      },
     );
   }
 
   Widget _buildListCard(BuildContext context, VideoFile video) {
     final bool isSelected = _selectedVideos.contains(video.path);
 
-    return GestureDetector(
-      onTap: () {
+    return Dismissible(
+      key: Key('list_${video.path}'),
+      direction: DismissDirection.horizontal,
+      background: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        decoration: BoxDecoration(
+          color: Colors.green,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.favorite, color: Colors.white, size: 32),
+      ),
+      secondaryBackground: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.delete, color: Colors.white, size: 32),
+      ),
+      onDismissed: (direction) {
+        if (direction == DismissDirection.startToEnd) {
+          // Swipe right - toggle favorite
+          context.read<VideoListBloc>().add(ToggleFavorite(video.path));
+          final favoritesBloc = BlocCommunicationService.getFavoritesBloc();
+          if (favoritesBloc != null && video.isFavorite) {
+            favoritesBloc.add(InstantRemoveFromFavorites(video.path));
+          }
+          MicroInteractions.hapticFeedback(
+            type: HapticFeedbackType.mediumImpact,
+          );
+        } else if (direction == DismissDirection.endToStart) {
+          // Swipe left - delete (already confirmed)
+          context.read<VideoListBloc>().add(DeleteVideo(video.path));
+          MicroInteractions.hapticFeedback(
+            type: HapticFeedbackType.heavyImpact,
+          );
+        }
+      },
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.endToStart) {
+          // For delete, show confirmation first
+          return await _showDeleteConfirmation(context, video) ?? false;
+        }
+        return true;
+      },
+      child: GestureDetector(
+        onTap: () {
         if (_selectedVideos.isNotEmpty) {
           setState(() {
             if (isSelected) {
@@ -511,21 +793,13 @@ class _VideoListPageState extends State<VideoListPage>
         if (_selectedVideos.isEmpty) {
           final wasInFavorites = video.isFavorite;
 
-          debugPrint(
-              'VideoListPage: Double tap detected for video: ${video.path}');
-          debugPrint('VideoListPage: Current favorite status: $wasInFavorites');
-
           // Update video list state
           context.read<VideoListBloc>().add(ToggleFavorite(video.path));
-          debugPrint(
-              'VideoListPage: ToggleFavorite event dispatched for: ${video.path}');
 
           // Update favorites bloc state
           final favoritesBloc = BlocCommunicationService.getFavoritesBloc();
           if (favoritesBloc != null && wasInFavorites) {
             favoritesBloc.add(InstantRemoveFromFavorites(video.path));
-            debugPrint(
-                'VideoListPage: InstantRemoveFromFavorites event dispatched for: ${video.path}');
           }
 
           // Show feedback
@@ -542,21 +816,41 @@ class _VideoListPageState extends State<VideoListPage>
           );
         }
       },
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isSelected
+                ? [
+                    Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    Theme.of(context).colorScheme.surface,
+                  ]
+                : [
+                    Theme.of(context).colorScheme.surface,
+                    Theme.of(context).colorScheme.surface.withOpacity(0.95),
+                  ],
+          ),
           border: isSelected
               ? Border.all(
                   color: Theme.of(context).colorScheme.primary,
-                  width: 2,
+                  width: 2.5,
                 )
-              : null,
+              : Border.all(
+                  color: Colors.white.withOpacity(0.1),
+                  width: 1,
+                ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.15),
+              blurRadius: isSelected ? 20 : 12,
+              offset: Offset(0, isSelected ? 8 : 4),
+              spreadRadius: isSelected ? 2 : 0,
             ),
           ],
         ),
@@ -582,46 +876,14 @@ class _VideoListPageState extends State<VideoListPage>
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: video.thumbnailBytes != null
-                          ? Image.memory(
-                              video.thumbnailBytes!,
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            )
-                          : video.thumbnailPath != null
-                              ? Image.file(
-                                  File(video.thumbnailPath!),
-                                  width: 80,
-                                  height: 80,
-                                  fit: BoxFit.cover,
-                                )
-                              : Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withOpacity(0.3),
-                                        Theme.of(context)
-                                            .colorScheme
-                                            .secondary
-                                            .withOpacity(0.3),
-                                      ],
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    Icons.play_circle_outline,
-                                    size: 30,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
+                      child: LazyThumbnail(
+                        videoPath: video.path,
+                        thumbnailPath: video.thumbnailPath,
+                        thumbnailBytes: video.thumbnailBytes,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                   // Status indicator
@@ -632,24 +894,15 @@ class _VideoListPageState extends State<VideoListPage>
                   ),
                   // Favorite indicator
                   BlocBuilder<VideoListBloc, VideoListState>(
+                    key: ValueKey('favorite_${video.path}'),
                     builder: (context, state) {
-                      debugPrint(
-                          'VideoListPage: FavoriteIcon BlocBuilder rebuilding for video: ${video.path}');
-                      debugPrint(
-                          'VideoListPage: FavoriteIcon state type: ${state.runtimeType}');
-
                       if (state is VideoListLoaded) {
                         final currentVideo = state.videos.firstWhere(
                           (v) => v.path == video.path,
                           orElse: () => video,
                         );
 
-                        debugPrint(
-                            'VideoListPage: FavoriteIcon current video favorite status: ${currentVideo.isFavorite}');
-
                         if (currentVideo.isFavorite) {
-                          debugPrint(
-                              'VideoListPage: FavoriteIcon showing icon for: ${video.path}');
                           return Positioned(
                             bottom: 8,
                             right: 4,
@@ -675,8 +928,6 @@ class _VideoListPageState extends State<VideoListPage>
                           );
                         }
                       }
-                      debugPrint(
-                          'VideoListPage: FavoriteIcon hiding icon for: ${video.path}');
                       return const SizedBox.shrink();
                     },
                   ),
@@ -781,6 +1032,31 @@ class _VideoListPageState extends State<VideoListPage>
           ),
         ),
       ),
+      ),
+    );
+  }
+
+  Future<bool?> _showDeleteConfirmation(BuildContext context, VideoFile video) async {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Video'),
+        content: Text('Are you sure you want to delete "${video.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<VideoListBloc>().add(DeleteVideo(video.path));
+              Navigator.pop(context, true);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -824,22 +1100,13 @@ class _VideoListPageState extends State<VideoListPage>
         if (_selectedVideos.isEmpty) {
           final wasInFavorites = video.isFavorite;
 
-          debugPrint(
-              'VideoListPage: GridView double tap detected for video: ${video.path}');
-          debugPrint(
-              'VideoListPage: GridView current favorite status: $wasInFavorites');
-
           // Update video list state
           context.read<VideoListBloc>().add(ToggleFavorite(video.path));
-          debugPrint(
-              'VideoListPage: GridView ToggleFavorite event dispatched for: ${video.path}');
 
           // Update favorites bloc state
           final favoritesBloc = BlocCommunicationService.getFavoritesBloc();
           if (favoritesBloc != null && wasInFavorites) {
             favoritesBloc.add(InstantRemoveFromFavorites(video.path));
-            debugPrint(
-                'VideoListPage: GridView InstantRemoveFromFavorites event dispatched for: ${video.path}');
           }
 
           // Show feedback
@@ -887,45 +1154,14 @@ class _VideoListPageState extends State<VideoListPage>
                   child: SizedBox(
                     width: double.infinity,
                     height: 120,
-                    child: video.thumbnailBytes != null
-                        ? Image.memory(
-                            video.thumbnailBytes!,
-                            width: double.infinity,
-                            height: 120,
-                            fit: BoxFit.cover,
-                          )
-                        : video.thumbnailPath != null
-                            ? Image.file(
-                                File(video.thumbnailPath!),
-                                width: double.infinity,
-                                height: 120,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
-                                width: double.infinity,
-                                height: 120,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      Theme.of(context)
-                                          .colorScheme
-                                          .primary
-                                          .withOpacity(0.3),
-                                      Theme.of(context)
-                                          .colorScheme
-                                          .secondary
-                                          .withOpacity(0.3),
-                                    ],
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.play_circle_outline,
-                                  size: 60,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
+                    child: LazyThumbnail(
+                      videoPath: video.path,
+                      thumbnailPath: video.thumbnailPath,
+                      thumbnailBytes: video.thumbnailBytes,
+                      width: null, // Let it fill parent SizedBox
+                      height: 120,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 // Status indicator
@@ -936,24 +1172,15 @@ class _VideoListPageState extends State<VideoListPage>
                 ),
                 // Favorite indicator
                 BlocBuilder<VideoListBloc, VideoListState>(
+                  key: ValueKey('favorite_grid_${video.path}'),
                   builder: (context, state) {
-                    debugPrint(
-                        'VideoListPage: GridView FavoriteIcon BlocBuilder rebuilding for video: ${video.path}');
-                    debugPrint(
-                        'VideoListPage: GridView FavoriteIcon state type: ${state.runtimeType}');
-
                     if (state is VideoListLoaded) {
                       final currentVideo = state.videos.firstWhere(
                         (v) => v.path == video.path,
                         orElse: () => video,
                       );
 
-                      debugPrint(
-                          'VideoListPage: GridView FavoriteIcon current video favorite status: ${currentVideo.isFavorite}');
-
                       if (currentVideo.isFavorite) {
-                        debugPrint(
-                            'VideoListPage: GridView FavoriteIcon showing icon for: ${video.path}');
                         return Positioned(
                           bottom: 8,
                           right: 4,
@@ -979,8 +1206,6 @@ class _VideoListPageState extends State<VideoListPage>
                         );
                       }
                     }
-                    debugPrint(
-                        'VideoListPage: GridView FavoriteIcon hiding icon for: ${video.path}');
                     return const SizedBox.shrink();
                   },
                 ),
