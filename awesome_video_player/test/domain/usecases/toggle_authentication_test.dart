@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:lumeo/domain/entities/app_settings.dart';
+import 'package:mockito/mockito.dart';
 import 'package:lumeo/domain/usecases/toggle_authentication.dart';
 import 'package:lumeo/core/security/authentication_service.dart';
 import '../../helpers/mock_factories.dart';

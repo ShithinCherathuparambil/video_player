@@ -7,7 +7,7 @@ import 'package:lumeo/presentation/blocs/video_player_cubit/video_player_cubit.d
 import 'package:lumeo/presentation/blocs/video_player_cubit/video_player_state.dart';
 import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
 import 'package:lumeo/domain/entities/video_file.dart';
-import '../helpers/test_helpers.dart';
+
 import '../helpers/mock_factories.dart';
 import '../helpers/mock_video_player_platform.dart';
 import '../helpers/test_data_builders.dart';

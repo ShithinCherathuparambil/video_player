@@ -10,6 +10,8 @@ import 'package:lumeo/domain/usecases/toggle_favorite.dart' as domain_toggle;
 import 'package:lumeo/domain/usecases/get_favorite_videos.dart';
 import 'package:lumeo/domain/usecases/get_theme_settings.dart';
 import 'package:lumeo/domain/usecases/save_theme_settings.dart';
+import 'package:lumeo/domain/usecases/toggle_authentication.dart'
+    as auth_usecase;
 import 'package:lumeo/domain/repositories/video_repository.dart';
 import 'package:lumeo/domain/repositories/settings_repository.dart';
 import 'package:lumeo/data/datasources/video_local_data_source.dart';
@@ -30,7 +32,14 @@ import 'package:lumeo/presentation/blocs/video_player_cubit/video_player_cubit.d
 import 'package:lumeo/presentation/blocs/video_player_cubit/video_player_state.dart';
 
 // Mock classes for use cases
-class MockGetVideos extends Mock implements GetVideos {}
+class MockGetVideos extends Mock implements GetVideos {
+  @override
+  Future<List<VideoFile>> call({int? page, int? pageSize}) =>
+      super.noSuchMethod(
+        Invocation.method(#call, [], {#page: page, #pageSize: pageSize}),
+        returnValue: Future.value(<VideoFile>[]),
+      );
+}
 
 class MockSaveVideoMetadata extends Mock implements SaveVideoMetadata {}
 
@@ -42,8 +51,17 @@ class MockGetThemeSettings extends Mock implements GetThemeSettings {}
 
 class MockSaveThemeSettings extends Mock implements SaveThemeSettings {}
 
+class MockToggleAuthentication extends Mock
+    implements auth_usecase.ToggleAuthentication {}
+
 // Mock classes for repositories
-class MockVideoRepository extends Mock implements VideoRepository {}
+class MockVideoRepository extends Mock implements VideoRepository {
+  @override
+  Future<void> saveVideoMetadata(VideoFile? video) => super.noSuchMethod(
+        Invocation.method(#saveVideoMetadata, [video]),
+        returnValue: Future<void>.value(),
+      );
+}
 
 class MockSettingsRepository extends Mock implements SettingsRepository {
   @override
@@ -53,7 +71,7 @@ class MockSettingsRepository extends Mock implements SettingsRepository {
       );
 
   @override
-  Future<void> saveSettings(AppSettings settings) => super.noSuchMethod(
+  Future<void> saveSettings(AppSettings? settings) => super.noSuchMethod(
         Invocation.method(#saveSettings, [settings]),
         returnValue: Future<void>.value(),
       );
@@ -201,7 +219,8 @@ class MockFactories {
   // Mock use case creation methods
   static MockGetVideos createMockGetVideos() {
     final mock = MockGetVideos();
-    when(mock.call()).thenAnswer((_) async => createTestVideoList());
+    when(mock.call(page: anyNamed('page'), pageSize: anyNamed('pageSize')))
+        .thenAnswer((_) async => createTestVideoList());
     return mock;
   }
 
@@ -228,6 +247,10 @@ class MockFactories {
 
   static MockSaveThemeSettings createMockSaveThemeSettings() {
     return MockSaveThemeSettings();
+  }
+
+  static MockToggleAuthentication createMockToggleAuthentication() {
+    return MockToggleAuthentication();
   }
 
   // Mock repository creation methods

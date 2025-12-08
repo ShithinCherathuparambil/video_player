@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:lumeo/presentation/screens/video_list_page.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_state.dart';
 import 'package:lumeo/presentation/blocs/theme_bloc/theme_bloc.dart';
@@ -10,15 +11,23 @@ import 'package:lumeo/presentation/blocs/theme_bloc/theme_state.dart';
 import 'package:lumeo/presentation/blocs/last_played_bloc/last_played_bloc.dart';
 import 'package:lumeo/presentation/blocs/favorites_bloc/favorites_bloc.dart';
 import 'package:lumeo/domain/entities/video_file.dart';
-import '../helpers/test_helpers.dart';
+
+import '../helpers/test_utils.dart';
 import '../helpers/mock_factories.dart';
 import '../helpers/mock_video_player_platform.dart';
 import '../helpers/test_data_builders.dart';
 
+import 'package:lumeo/core/services/video_cache_service.dart';
+
 void main() {
-  setUpAll(() {
+  setUpAll(() async {
+    // Setup test environment (mocks path provider, shared prefs, etc.)
+    TestUtils.setupTestEnvironment();
     // Register mock video player platform globally
     MockVideoPlayerPlatform.registerWith();
+
+    // Initialize cache service with mocked path provider
+    await VideoCacheService.instance.initialize();
   });
 
   group('VideoListPage Widget Tests', () {
@@ -42,8 +51,15 @@ void main() {
           BlocProvider<LastPlayedBloc>.value(value: mockLastPlayedBloc),
           BlocProvider<FavoritesBloc>.value(value: mockFavoritesBloc),
         ],
-        child: const MaterialApp(
-          home: VideoListPage(),
+        child: ScreenUtilInit(
+          designSize: const Size(360, 690),
+          minTextAdapt: true,
+          splitScreenMode: true,
+          builder: (context, child) {
+            return const MaterialApp(
+              home: VideoListPage(),
+            );
+          },
         ),
       );
     }
@@ -308,10 +324,14 @@ void main() {
       await tester.pumpWidget(createTestWidget());
       await tester.pump();
 
-      // Find favorite icon (there might be multiple, so use first)
-      final favoriteIcons = find.byIcon(Icons.favorite);
-      expect(favoriteIcons, findsWidgets);
-      await tester.tap(favoriteIcons.first);
+      // Find video card by text
+      final videoCard = find.text('Test Video');
+      expect(videoCard, findsOneWidget);
+
+      // Double tap to toggle favorite (simulate with two taps)
+      await tester.tap(videoCard);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(videoCard);
       await tester.pump();
 
       // Clean up any pending timers

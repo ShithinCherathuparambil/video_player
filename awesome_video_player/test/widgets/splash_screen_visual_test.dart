@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lumeo/presentation/screens/splash_screen.dart';
 
 void main() {
   group('SplashScreen Visual Tests', () {
-    testWidgets('should display gradient background with play icon', (WidgetTester tester) async {
+    testWidgets('should display gradient background with play icon',
+        (WidgetTester tester) async {
       // Build the splash screen without triggering timers
       await tester.pumpWidget(
         MaterialApp(
@@ -75,22 +75,22 @@ void main() {
 
       // Verify the play button icon is displayed
       expect(find.byIcon(Icons.play_arrow), findsOneWidget);
-      
+
       // Verify the title text is displayed
       expect(find.text('Awesome Video Player'), findsOneWidget);
-      
+
       // Verify the gradient container is present
       expect(find.byType(Container), findsWidgets);
-      
+
       // Find the main container with gradient decoration
       final containerFinder = find.byType(Container).first;
       final Container container = tester.widget(containerFinder);
-      
+
       // Verify it has a BoxDecoration with LinearGradient
       expect(container.decoration, isA<BoxDecoration>());
       final BoxDecoration decoration = container.decoration as BoxDecoration;
       expect(decoration.gradient, isA<LinearGradient>());
-      
+
       // Verify gradient colors
       final LinearGradient gradient = decoration.gradient as LinearGradient;
       expect(gradient.colors.length, 5);
@@ -128,7 +128,8 @@ void main() {
       expect(textWidget.style?.color, Colors.white);
     });
 
-    testWidgets('should have play icon with correct styling', (WidgetTester tester) async {
+    testWidgets('should have play icon with correct styling',
+        (WidgetTester tester) async {
       // Build a simple version with just the icon
       await tester.pumpWidget(
         MaterialApp(
@@ -154,7 +155,7 @@ void main() {
 
       // Verify the play button icon is displayed
       expect(find.byIcon(Icons.play_arrow), findsOneWidget);
-      
+
       // Get the icon widget and verify styling
       final iconFinder = find.byIcon(Icons.play_arrow);
       final Icon iconWidget = tester.widget(iconFinder);

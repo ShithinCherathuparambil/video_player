@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lumeo/domain/entities/video_file.dart';
 
 void main() {
   group('Aspect Ratio Formatting Tests', () {
@@ -60,7 +58,7 @@ void main() {
         21 / 9,
         2.35 / 1
       ];
-      double originalAspectRatio = 1.85; // Example original ratio
+
       int currentIndex = 0;
 
       // Test cycling through ratios

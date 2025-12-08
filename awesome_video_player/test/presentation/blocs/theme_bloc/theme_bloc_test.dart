@@ -11,10 +11,16 @@ import '../../../helpers/mock_factories.dart';
 void main() {
   late MockGetThemeSettings mockGetThemeSettings;
   late MockSaveThemeSettings mockSaveThemeSettings;
+  late MockToggleAuthentication
+      mockToggleAuthentication; // Using MockToggleFavorite as placeholder or need specific mock? ToggleAuthentication is in auth_usecase.
+  // Actually, mock_factories provides createMockToggleFavorite (which is for video favorite?).
+  // ToggleAuthentication usecase is different.
+  // Check mock_factories for ToggleAuthentication mock.
 
   setUp(() {
     mockGetThemeSettings = MockFactories.createMockGetThemeSettings();
     mockSaveThemeSettings = MockFactories.createMockSaveThemeSettings();
+    mockToggleAuthentication = MockFactories.createMockToggleAuthentication();
   });
 
   final tInitialAppSettings = AppSettings(themeMode: ThemeMode.system);
@@ -26,6 +32,7 @@ void main() {
     final bloc = ThemeBloc(
       getThemeSettings: mockGetThemeSettings,
       saveThemeSettings: mockSaveThemeSettings,
+      toggleAuthentication: mockToggleAuthentication,
     );
 
     // Expect initial state is ThemeInitial due to constructor
@@ -41,7 +48,8 @@ void main() {
           .thenAnswer((_) async => tInitialAppSettings);
       return ThemeBloc(
           getThemeSettings: mockGetThemeSettings,
-          saveThemeSettings: mockSaveThemeSettings);
+          saveThemeSettings: mockSaveThemeSettings,
+          toggleAuthentication: mockToggleAuthentication);
     },
     // Initial state is ThemeInitial, then LoadTheme is added.
     // So ThemeInitial -> ThemeLoading -> ThemeLoaded
@@ -59,7 +67,8 @@ void main() {
     },
     build: () => ThemeBloc(
         getThemeSettings: mockGetThemeSettings,
-        saveThemeSettings: mockSaveThemeSettings),
+        saveThemeSettings: mockSaveThemeSettings,
+        toggleAuthentication: mockToggleAuthentication),
     expect: () => [
       ThemeLoading(),
       ThemeLoaded(themeMode: tDarkAppSettings.themeMode),
@@ -74,7 +83,8 @@ void main() {
     },
     build: () => ThemeBloc(
         getThemeSettings: mockGetThemeSettings,
-        saveThemeSettings: mockSaveThemeSettings),
+        saveThemeSettings: mockSaveThemeSettings,
+        toggleAuthentication: mockToggleAuthentication),
     expect: () => [
       ThemeLoading(),
       const ThemeError('Failed to load theme: Exception: Failed to load theme'),
@@ -95,8 +105,9 @@ void main() {
       },
       build: () => ThemeBloc(
           getThemeSettings: mockGetThemeSettings,
-          saveThemeSettings:
-              mockSaveThemeSettings), // Create fresh bloc for this test
+          saveThemeSettings: mockSaveThemeSettings,
+          toggleAuthentication:
+              mockToggleAuthentication), // Create fresh bloc for this test
       // Assuming initial state (after setUp's ThemeBloc creation and initial LoadTheme) might be ThemeLoaded(system)
       // To make this test cleaner, we can seed the bloc or ensure LoadTheme has run.
       // For simplicity, we assume initial LoadTheme has completed (e.g. to system)
@@ -117,7 +128,8 @@ void main() {
       },
       build: () => ThemeBloc(
           getThemeSettings: mockGetThemeSettings,
-          saveThemeSettings: mockSaveThemeSettings),
+          saveThemeSettings: mockSaveThemeSettings,
+          toggleAuthentication: mockToggleAuthentication),
       act: (bloc) => bloc.add(const ChangeTheme(ThemeMode.light)),
       expect: () => [
             const ThemeError(

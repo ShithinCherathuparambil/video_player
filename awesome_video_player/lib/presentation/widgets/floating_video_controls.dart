@@ -38,6 +38,12 @@ class FloatingVideoControls extends StatefulWidget {
   final String selectedAudioTrack;
   final String selectedSubtitleTrack;
   final String selectedVideoTrack;
+  final bool backgroundPlayEnabled;
+  final String loopMode;
+  final List<String> availableAudioTracks;
+  final List<String> availableSubtitleTracks;
+  final bool ambientModeEnabled;
+  final ValueChanged<bool> onAmbientModeChanged;
   final ValueChanged<bool> onHardwareAccelerationChanged;
   final ValueChanged<bool> onDeinterlaceChanged;
   final ValueChanged<bool> onFrameDropChanged;
@@ -56,6 +62,8 @@ class FloatingVideoControls extends StatefulWidget {
   final ValueChanged<String> onAudioTrackChanged;
   final ValueChanged<String> onSubtitleTrackChanged;
   final ValueChanged<String> onVideoTrackChanged;
+  final ValueChanged<bool> onBackgroundPlayEnabledChanged;
+  final ValueChanged<String> onLoopModeChanged;
 
   const FloatingVideoControls({
     super.key,
@@ -95,6 +103,12 @@ class FloatingVideoControls extends StatefulWidget {
     required this.selectedAudioTrack,
     required this.selectedSubtitleTrack,
     required this.selectedVideoTrack,
+    required this.backgroundPlayEnabled,
+    required this.loopMode,
+    this.availableAudioTracks = const [],
+    this.availableSubtitleTracks = const [],
+    required this.ambientModeEnabled,
+    required this.onAmbientModeChanged,
     required this.onHardwareAccelerationChanged,
     required this.onDeinterlaceChanged,
     required this.onFrameDropChanged,
@@ -113,6 +127,8 @@ class FloatingVideoControls extends StatefulWidget {
     required this.onAudioTrackChanged,
     required this.onSubtitleTrackChanged,
     required this.onVideoTrackChanged,
+    required this.onBackgroundPlayEnabledChanged,
+    required this.onLoopModeChanged,
   });
 
   @override
@@ -128,7 +144,6 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
   late Animation<double> _scaleAnimation;
   late Animation<Offset> _slideAnimation;
 
-  bool _showQuickControls = false;
   bool _showAdvancedMenu = false;
 
   @override
@@ -285,9 +300,7 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
           _buildGlassButton(
             icon: Icons.audiotrack,
             onPressed: () {
-              // Show audio track selection (reusing existing logic or new modal)
-              // We can trigger the parent's audio selection or show a modal here.
-              // For now, let's assume we use the existing method or similar.
+              _showAudioTrackSelection();
             },
             backgroundColor: Colors.transparent,
           ),
@@ -297,7 +310,7 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
           _buildGlassButton(
             icon: Icons.subtitles,
             onPressed: () {
-              // Show subtitle selection
+              _showSubtitleTrackSelection();
             },
             backgroundColor: Colors.transparent,
           ),
@@ -318,92 +331,6 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
             backgroundColor: Colors.transparent,
           ),
         ],
-      ),
-    );
-  }
-
-  void _showPlaybackSpeedOptions() {
-    final speeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.9),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Playback Speed',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
-              ),
-            ),
-            GridView.builder(
-              shrinkWrap: true,
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemCount: speeds.length,
-              itemBuilder: (context, index) {
-                final speed = speeds[index];
-                final isSelected = speed == widget.playbackSpeed;
-
-                return InkWell(
-                  onTap: () {
-                    widget.onPlaybackSpeedChanged(speed);
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.white.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${speed}x',
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.white70,
-                          fontSize: 14,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
       ),
     );
   }
@@ -450,6 +377,12 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
         onAudioTrackChanged: widget.onAudioTrackChanged,
         onSubtitleTrackChanged: widget.onSubtitleTrackChanged,
         onVideoTrackChanged: widget.onVideoTrackChanged,
+        backgroundPlayEnabled: widget.backgroundPlayEnabled,
+        loopMode: widget.loopMode,
+        onBackgroundPlayEnabledChanged: widget.onBackgroundPlayEnabledChanged,
+        onLoopModeChanged: widget.onLoopModeChanged,
+        ambientModeEnabled: widget.ambientModeEnabled,
+        onAmbientModeChanged: widget.onAmbientModeChanged,
       ),
     );
   }
@@ -488,6 +421,134 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
               size: 20,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showAudioTrackSelection() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'Select Audio Track',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            if (widget.availableAudioTracks.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text('No audio tracks available',
+                    style: TextStyle(color: Colors.white70)),
+              )
+            else
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: widget.availableAudioTracks.map((track) {
+                      final isSelected = widget.selectedAudioTrack == track;
+                      return ListTile(
+                        leading: isSelected
+                            ? const Icon(Icons.check, color: Colors.blueAccent)
+                            : const SizedBox(width: 24),
+                        title: Text(
+                          track,
+                          style: TextStyle(
+                            color:
+                                isSelected ? Colors.blueAccent : Colors.white,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        onTap: () {
+                          widget.onAudioTrackChanged(track);
+                          Navigator.pop(context);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSubtitleTrackSelection() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'Select Subtitle Track',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            if (widget.availableSubtitleTracks.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text('No subtitle tracks available',
+                    style: TextStyle(color: Colors.white70)),
+              )
+            else
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: widget.availableSubtitleTracks.map((track) {
+                      final isSelected = widget.selectedSubtitleTrack == track;
+                      return ListTile(
+                        leading: isSelected
+                            ? const Icon(Icons.check, color: Colors.blueAccent)
+                            : const SizedBox(width: 24),
+                        title: Text(
+                          track,
+                          style: TextStyle(
+                            color:
+                                isSelected ? Colors.blueAccent : Colors.white,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        onTap: () {
+                          widget.onSubtitleTrackChanged(track);
+                          Navigator.pop(context);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

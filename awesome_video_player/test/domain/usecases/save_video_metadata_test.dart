@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:lumeo/domain/entities/video_file.dart';
-import 'package:lumeo/domain/repositories/video_repository.dart';
+
 import 'package:lumeo/domain/usecases/save_video_metadata.dart';
 import '../../helpers/mock_factories.dart';
 import '../../helpers/test_data_builders.dart';
@@ -27,7 +27,7 @@ void main() {
     group('Successful Execution Tests', () {
       test('should save video metadata through repository', () async {
         // arrange
-        when(mockVideoRepository.saveVideoMetadata(any))
+        when(mockVideoRepository.saveVideoMetadata(testVideoFile))
             .thenAnswer((_) async {});
 
         // act
@@ -43,9 +43,9 @@ void main() {
         final videoWithPosition = testVideoFile.copyWith(
           lastPlayedPosition: const Duration(minutes: 10),
           lastPlayedAt: DateTime.now(),
-          status: VideoStatus.partiallyWatched,
+          status: VideoStatus.watching,
         );
-        when(mockVideoRepository.saveVideoMetadata(any))
+        when(mockVideoRepository.saveVideoMetadata(videoWithPosition))
             .thenAnswer((_) async {});
 
         // act
@@ -60,7 +60,7 @@ void main() {
       test('should save video with favorite status', () async {
         // arrange
         final favoriteVideo = testVideoFile.copyWith(isFavorite: true);
-        when(mockVideoRepository.saveVideoMetadata(any))
+        when(mockVideoRepository.saveVideoMetadata(favoriteVideo))
             .thenAnswer((_) async {});
 
         // act
@@ -78,7 +78,7 @@ void main() {
           lastPlayedPosition: testVideoFile.duration,
           lastPlayedAt: DateTime.now(),
         );
-        when(mockVideoRepository.saveVideoMetadata(any))
+        when(mockVideoRepository.saveVideoMetadata(watchedVideo))
             .thenAnswer((_) async {});
 
         // act
@@ -94,7 +94,8 @@ void main() {
       test('should propagate repository exceptions', () async {
         // arrange
         final exception = Exception('Save failed');
-        when(mockVideoRepository.saveVideoMetadata(any)).thenThrow(exception);
+        when(mockVideoRepository.saveVideoMetadata(testVideoFile))
+            .thenThrow(exception);
 
         // act & assert
         expect(() => usecase.call(testVideoFile), throwsA(exception));
@@ -104,7 +105,7 @@ void main() {
       test('should propagate storage exceptions', () async {
         // arrange
         final storageException = Exception('Storage full');
-        when(mockVideoRepository.saveVideoMetadata(any))
+        when(mockVideoRepository.saveVideoMetadata(testVideoFile))
             .thenThrow(storageException);
 
         // act & assert
@@ -115,7 +116,7 @@ void main() {
       test('should propagate permission exceptions', () async {
         // arrange
         final permissionException = Exception('Permission denied');
-        when(mockVideoRepository.saveVideoMetadata(any))
+        when(mockVideoRepository.saveVideoMetadata(testVideoFile))
             .thenThrow(permissionException);
 
         // act & assert
@@ -136,7 +137,8 @@ void main() {
             .withDateAdded(DateTime(2023, 6, 15))
             .withLastPlayedPosition(const Duration(minutes: 45))
             .withLastPlayedAt(DateTime(2023, 6, 20))
-            .withStatus(VideoStatus.partiallyWatched)
+            .withLastPlayedAt(DateTime(2023, 6, 20))
+            .withStatus(VideoStatus.watching)
             .asFavorite()
             .build();
 
@@ -160,7 +162,8 @@ void main() {
         expect(captured.dateAdded, DateTime(2023, 6, 15));
         expect(captured.lastPlayedPosition, const Duration(minutes: 45));
         expect(captured.lastPlayedAt, DateTime(2023, 6, 20));
-        expect(captured.status, VideoStatus.partiallyWatched);
+        expect(captured.lastPlayedAt, DateTime(2023, 6, 20));
+        expect(captured.status, VideoStatus.watching);
         expect(captured.isFavorite, true);
       });
 
@@ -244,7 +247,7 @@ void main() {
         await usecase.call(newVideo);
 
         final partiallyWatchedVideo = newVideo.copyWith(
-          status: VideoStatus.partiallyWatched,
+          status: VideoStatus.watching,
           lastPlayedPosition: const Duration(minutes: 5),
           lastPlayedAt: DateTime.now(),
         );

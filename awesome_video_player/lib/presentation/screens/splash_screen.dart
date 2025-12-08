@@ -20,7 +20,6 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   bool _visible = false;
-  String _statusMessage = 'Loading...';
 
   @override
   void initState() {
@@ -118,9 +117,9 @@ class _SplashScreenState extends State<SplashScreen> {
 
   void _updateStatus(String message) {
     if (mounted) {
-      setState(() {
-        _statusMessage = message;
-      });
+      if (mounted) {
+        debugPrint('SplashScreen Status: $message');
+      }
     }
   }
 

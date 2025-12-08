@@ -5,23 +5,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
-import 'package:photo_manager/photo_manager.dart';
 
 /// Utility class for setting up test environment and mocking platform services
 class TestUtils {
   /// Sets up the test environment with necessary mocks
   static void setupTestEnvironment() {
     TestWidgetsFlutterBinding.ensureInitialized();
-    
+
     // Mock SharedPreferences
     SharedPreferences.setMockInitialValues({});
-    
+
     // Mock path provider
     _mockPathProvider();
-    
+
     // Mock permission handler
     _mockPermissionHandler();
-    
+
     // Mock photo manager
     _mockPhotoManager();
   }
@@ -64,7 +63,8 @@ class TestUtils {
   }
 
   /// Creates a temporary file for testing
-  static Future<File> createTempFile(String content, {String? extension}) async {
+  static Future<File> createTempFile(String content,
+      {String? extension}) async {
     final tempDir = await createTempDirectory();
     final fileName = 'test_file${extension ?? '.txt'}';
     final file = File('${tempDir.path}/$fileName');
@@ -113,23 +113,25 @@ class TestUtils {
     Duration interval = const Duration(milliseconds: 100),
   }) async {
     final stopwatch = Stopwatch()..start();
-    
+
     while (!condition() && stopwatch.elapsed < timeout) {
       await Future.delayed(interval);
     }
-    
+
     if (!condition()) {
       throw TimeoutException('Condition not met within timeout', timeout);
     }
   }
 
   /// Simulates a delay for testing async operations
-  static Future<void> simulateDelay({Duration delay = const Duration(milliseconds: 100)}) async {
+  static Future<void> simulateDelay(
+      {Duration delay = const Duration(milliseconds: 100)}) async {
     await Future.delayed(delay);
   }
 
   /// Creates a mock method channel response
-  static void mockMethodChannel(String channelName, Map<String, dynamic> responses) {
+  static void mockMethodChannel(
+      String channelName, Map<String, dynamic> responses) {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       MethodChannel(channelName),
@@ -138,34 +140,28 @@ class TestUtils {
       },
     );
   }
-
-  /// Resets all method channel mocks
-  static void resetMethodChannelMocks() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(null, null);
-  }
 }
 
 /// Mock implementation of PathProviderPlatform
 class MockPathProviderPlatform extends PathProviderPlatform {
   @override
   Future<String?> getTemporaryPath() async {
-    return '/tmp';
+    return Directory.systemTemp.createTempSync('test_temp_').path;
   }
 
   @override
   Future<String?> getApplicationSupportPath() async {
-    return '/app_support';
+    return Directory.systemTemp.createTempSync('test_support_').path;
   }
 
   @override
   Future<String?> getLibraryPath() async {
-    return '/library';
+    return Directory.systemTemp.createTempSync('test_library_').path;
   }
 
   @override
   Future<String?> getApplicationDocumentsPath() async {
-    return '/documents';
+    return Directory.systemTemp.createTempSync('test_documents_').path;
   }
 
   @override
@@ -179,7 +175,8 @@ class MockPathProviderPlatform extends PathProviderPlatform {
   }
 
   @override
-  Future<List<String>?> getExternalStoragePaths({StorageDirectory? type}) async {
+  Future<List<String>?> getExternalStoragePaths(
+      {StorageDirectory? type}) async {
     return ['/external_storage'];
   }
 
@@ -200,11 +197,14 @@ class MockPermissionHandlerPlatform extends PermissionHandlerPlatform {
   Future<Map<Permission, PermissionStatus>> requestPermissions(
     List<Permission> permissions,
   ) async {
-    return {for (final permission in permissions) permission: PermissionStatus.granted};
+    return {
+      for (final permission in permissions) permission: PermissionStatus.granted
+    };
   }
 
   @override
-  Future<bool> shouldShowRequestPermissionRationale(Permission permission) async {
+  Future<bool> shouldShowRequestPermissionRationale(
+      Permission permission) async {
     return false;
   }
 

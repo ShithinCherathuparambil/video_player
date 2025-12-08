@@ -657,8 +657,7 @@ class _VideoListPageState extends State<VideoListPage>
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio:
-            0.7, // Reduced from 0.8 to give more vertical space
+        childAspectRatio: 0.7, // Reduced from 0.8 to give more vertical space
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
@@ -681,7 +680,7 @@ class _VideoListPageState extends State<VideoListPage>
   Widget _buildVideoListView(BuildContext context, List<VideoFile> videos) {
     final state = context.read<VideoListBloc>().state;
     final isLoadingMore = state is VideoListLoaded && state.isLoadingMore;
-    
+
     // Remove Column/Expanded wrapper since this is inside a ListView (unbounded height)
     return ListView.builder(
       shrinkWrap: true,
@@ -758,7 +757,29 @@ class _VideoListPageState extends State<VideoListPage>
       },
       child: GestureDetector(
         onTap: () {
-        if (_selectedVideos.isNotEmpty) {
+          if (_selectedVideos.isNotEmpty) {
+            setState(() {
+              if (isSelected) {
+                _selectedVideos.remove(video.path);
+              } else {
+                _selectedVideos.add(video.path);
+              }
+            });
+          } else {
+            // Normal video playback
+            context.read<LastPlayedBloc>().add(SetLastPlayedVideo(video));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VideoPlayerPage(
+                  video: video,
+                  resumeFromLastPosition: video.lastPlayedPosition != null,
+                ),
+              ),
+            );
+          }
+        },
+        onLongPress: () {
           setState(() {
             if (isSelected) {
               _selectedVideos.remove(video.path);
@@ -766,277 +787,267 @@ class _VideoListPageState extends State<VideoListPage>
               _selectedVideos.add(video.path);
             }
           });
-        } else {
-          // Normal video playback
-          context.read<LastPlayedBloc>().add(SetLastPlayedVideo(video));
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VideoPlayerPage(
-                video: video,
-                resumeFromLastPosition: video.lastPlayedPosition != null,
-              ),
-            ),
-          );
-        }
-      },
-      onLongPress: () {
-        setState(() {
-          if (isSelected) {
-            _selectedVideos.remove(video.path);
-          } else {
-            _selectedVideos.add(video.path);
-          }
-        });
-      },
-      onDoubleTap: () {
-        if (_selectedVideos.isEmpty) {
-          final wasInFavorites = video.isFavorite;
+        },
+        onDoubleTap: () {
+          if (_selectedVideos.isEmpty) {
+            final wasInFavorites = video.isFavorite;
 
-          // Update video list state
-          context.read<VideoListBloc>().add(ToggleFavorite(video.path));
+            // Update video list state
+            context.read<VideoListBloc>().add(ToggleFavorite(video.path));
 
-          // Update favorites bloc state
-          final favoritesBloc = BlocCommunicationService.getFavoritesBloc();
-          if (favoritesBloc != null && wasInFavorites) {
-            favoritesBloc.add(InstantRemoveFromFavorites(video.path));
-          }
+            // Update favorites bloc state
+            final favoritesBloc = BlocCommunicationService.getFavoritesBloc();
+            if (favoritesBloc != null && wasInFavorites) {
+              favoritesBloc.add(InstantRemoveFromFavorites(video.path));
+            }
 
-          // Show feedback
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                wasInFavorites
-                    ? 'Removed from favorites'
-                    : 'Added to favorites',
-              ),
-              backgroundColor: wasInFavorites ? Colors.orange : Colors.green,
-              duration: const Duration(seconds: 1),
-            ),
-          );
-        }
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isSelected
-                ? [
-                    Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    Theme.of(context).colorScheme.surface,
-                  ]
-                : [
-                    Theme.of(context).colorScheme.surface,
-                    Theme.of(context).colorScheme.surface.withOpacity(0.95),
-                  ],
-          ),
-          border: isSelected
-              ? Border.all(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 2.5,
-                )
-              : Border.all(
-                  color: Colors.white.withOpacity(0.1),
-                  width: 1,
+            // Show feedback
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  wasInFavorites
+                      ? 'Removed from favorites'
+                      : 'Added to favorites',
                 ),
-          boxShadow: [
-            BoxShadow(
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-                  : Colors.black.withOpacity(0.15),
-              blurRadius: isSelected ? 20 : 12,
-              offset: Offset(0, isSelected ? 8 : 4),
-              spreadRadius: isSelected ? 2 : 0,
+                backgroundColor: wasInFavorites ? Colors.orange : Colors.green,
+                duration: const Duration(seconds: 1),
+              ),
+            );
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isSelected
+                  ? [
+                      Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      Theme.of(context).colorScheme.surface,
+                    ]
+                  : [
+                      Theme.of(context).colorScheme.surface,
+                      Theme.of(context).colorScheme.surface.withOpacity(0.95),
+                    ],
             ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Thumbnail with status indicator
-              Stack(
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: LazyThumbnail(
-                        videoPath: video.path,
-                        thumbnailPath: video.thumbnailPath,
-                        thumbnailBytes: video.thumbnailBytes,
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
+            border: isSelected
+                ? Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2.5,
+                  )
+                : Border.all(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
                   ),
-                  // Status indicator
-                  Positioned(
-                    top: 4,
-                    left: 4,
-                    child: _buildStatusIndicator(context, video, true),
-                  ),
-                  // Favorite indicator
-                  BlocBuilder<VideoListBloc, VideoListState>(
-                    key: ValueKey('favorite_${video.path}'),
-                    builder: (context, state) {
-                      if (state is VideoListLoaded) {
-                        final currentVideo = state.videos.firstWhere(
-                          (v) => v.path == video.path,
-                          orElse: () => video,
-                        );
-
-                        if (currentVideo.isFavorite) {
-                          return Positioned(
-                            bottom: 8,
-                            right: 4,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.red.withOpacity(0.3),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.favorite,
-                                color: Colors.white,
-                                size: 12,
-                              ),
-                            ),
-                          );
-                        }
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                  // Resume indicator
-                  if (video.lastPlayedPosition != null &&
-                      video.duration != null)
-                    Positioned(
-                      bottom: 4,
-                      left: 4,
-                      right: 4,
-                      child: Container(
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor:
-                              video.lastPlayedPosition!.inMilliseconds /
-                                  video.duration!.inMilliseconds,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              // Video info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      video.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    if (video.duration != null)
-                      Text(
-                        _formatDuration(video.duration!),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    const SizedBox(height: 4),
-                    if (video.fileSize != null)
-                      Text(
-                        _formatFileSize(video.fileSize!),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    if (video.dateAdded != null)
-                      Text(
-                        DateFormat('MMM dd, yyyy').format(video.dateAdded!),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    // Resume text
-                    if (video.lastPlayedPosition != null &&
-                        video.status != VideoStatus.lastWatched)
-                      Text(
-                        'Resume from ${_formatDuration(video.lastPlayedPosition!)}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                  ],
-                ),
-              ),
-              // Play icon
-              Icon(
-                Icons.play_circle_outline,
-                color: Theme.of(context).colorScheme.primary,
-                size: 32,
+            boxShadow: [
+              BoxShadow(
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+                    : Colors.black.withOpacity(0.15),
+                blurRadius: isSelected ? 20 : 12,
+                offset: Offset(0, isSelected ? 8 : 4),
+                spreadRadius: isSelected ? 2 : 0,
               ),
             ],
           ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                // Thumbnail with status indicator
+                Stack(
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: LazyThumbnail(
+                          videoPath: video.path,
+                          thumbnailPath: video.thumbnailPath,
+                          thumbnailBytes: video.thumbnailBytes,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    // Status indicator
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: _buildStatusIndicator(context, video, true),
+                    ),
+                    // Favorite indicator
+                    BlocBuilder<VideoListBloc, VideoListState>(
+                      key: ValueKey('favorite_${video.path}'),
+                      builder: (context, state) {
+                        if (state is VideoListLoaded) {
+                          final currentVideo = state.videos.firstWhere(
+                            (v) => v.path == video.path,
+                            orElse: () => video,
+                          );
+
+                          if (currentVideo.isFavorite) {
+                            return Positioned(
+                              bottom: 8,
+                              right: 4,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.red.withOpacity(0.3),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.favorite,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    // Resume indicator
+                    if (video.lastPlayedPosition != null &&
+                        video.duration != null)
+                      Positioned(
+                        bottom: 4,
+                        left: 4,
+                        right: 4,
+                        child: Container(
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor:
+                                video.lastPlayedPosition!.inMilliseconds /
+                                    video.duration!.inMilliseconds,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                // Video info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        video.name,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      if (video.duration != null)
+                        Text(
+                          _formatDuration(video.duration!),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      const SizedBox(height: 4),
+                      if (video.fileSize != null)
+                        Text(
+                          _formatFileSize(video.fileSize!),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (video.dateAdded != null)
+                        Text(
+                          DateFormat('MMM dd, yyyy').format(video.dateAdded!),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      // Resume text
+                      if (video.lastPlayedPosition != null &&
+                          video.status != VideoStatus.lastWatched)
+                        Text(
+                          'Resume from ${_formatDuration(video.lastPlayedPosition!)}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+                // Play icon
+                Icon(
+                  Icons.play_circle_outline,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 32,
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
       ),
     );
   }
 
-  Future<bool?> _showDeleteConfirmation(BuildContext context, VideoFile video) async {
+  Future<bool?> _showDeleteConfirmation(
+      BuildContext context, VideoFile video) async {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1104,9 +1115,17 @@ class _VideoListPageState extends State<VideoListPage>
           context.read<VideoListBloc>().add(ToggleFavorite(video.path));
 
           // Update favorites bloc state
-          final favoritesBloc = BlocCommunicationService.getFavoritesBloc();
-          if (favoritesBloc != null && wasInFavorites) {
-            favoritesBloc.add(InstantRemoveFromFavorites(video.path));
+          // Update favorite using context
+          try {
+            final favoritesBloc = context.read<FavoritesBloc>();
+            if (wasInFavorites) {
+              favoritesBloc.add(InstantRemoveFromFavorites(video.path));
+            } else {
+              // Add to favorites handled by VideoListBloc listening?
+              // Or check if AddToFavorites exists
+            }
+          } catch (e) {
+            // Ignore if provider not found (though it should be)
           }
 
           // Show feedback

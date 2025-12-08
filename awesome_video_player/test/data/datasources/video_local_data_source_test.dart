@@ -6,7 +6,6 @@ import 'package:lumeo/data/datasources/video_local_data_source.dart';
 import 'package:lumeo/domain/entities/video_file.dart';
 import 'package:lumeo/core/error/exceptions.dart';
 import '../../helpers/test_utils.dart';
-import '../../helpers/test_constants.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:flutter/foundation.dart';
 
@@ -378,7 +377,6 @@ void main() {
         when(mockEntity.createDateTime).thenReturn(DateTime.now());
 
         // Patch _getPlatformVideos to use our mock entity
-        final dataSourceIOS = VideoLocalDataSourceImpl();
         Future<List<VideoFile>> fakeGetPlatformVideos() async {
           final file = await mockEntity.file;
           final thumbnailBytes =

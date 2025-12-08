@@ -1,4 +1,7 @@
 import 'dart:async'; // Added for Timer and StreamSubscription
+import 'dart:io';
+import 'dart:math';
+import 'dart:ui'; // For ImageFilter
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -39,8 +42,6 @@ import 'package:lumeo/core/services/chapter_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lumeo/presentation/widgets/video_fit_mode_selector.dart';
 import 'package:lumeo/presentation/widgets/mx_player_controls.dart';
-
-import 'package:lumeo/core/utils/micro_interactions.dart';
 
 class VideoPlayerPage extends StatefulWidget {
   final VideoFile video;
@@ -137,9 +138,20 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
   String _selectedAudioTrack = 'Default';
   String _selectedSubtitleTrack = 'None';
   String _selectedVideoTrack = 'Default';
+  bool _backgroundPlayEnabled = false;
+  String _loopMode = 'Off'; // 'Off', 'One', 'All'
+
+  // Track Lists
+  List<String> _availableAudioTracks = [];
+  List<String> _availableSubtitleTracks = [];
 
   // UI State
   bool _showStatistics = false;
+
+  // Cinematic Ambient Mode
+  bool _ambientModeEnabled = false;
+
+  AnimationController? _controlsAnimationController;
 
   // Playback statistics
   double _fps = 0.0;
@@ -260,7 +272,20 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
         _selectedQuality = prefs['selectedQuality'] ?? 'Auto';
         _selectedAudioTrack = prefs['selectedAudioTrack'] ?? 'Default';
         _selectedSubtitleTrack = prefs['selectedSubtitleTrack'] ?? 'None';
+        _selectedSubtitleTrack = prefs['selectedSubtitleTrack'] ?? 'None';
         _selectedVideoTrack = prefs['selectedVideoTrack'] ?? 'Default';
+        _backgroundPlayEnabled = prefs['backgroundPlayEnabled'] ?? false;
+        _loopMode = prefs['loopMode'] ?? 'Off';
+
+        // Apply initial settings
+        if (_playerService != null) {
+          _playerService!.enableBackgroundPlay(_backgroundPlayEnabled);
+          if (_loopMode == 'One') {
+            _playerService!.setLooping(true);
+          } else {
+            _playerService!.setLooping(false);
+          }
+        }
       });
     }
   }
@@ -302,6 +327,20 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
     _slideAnimationController.forward();
   }
 
+  Future<void> _loadTracks() async {
+    if (_playerService == null) return;
+
+    final audioTracks = await _playerService!.getAudioTracks();
+    final subtitleTracks = await _playerService!.getSubtitleTracks();
+
+    if (mounted) {
+      setState(() {
+        _availableAudioTracks = audioTracks;
+        _availableSubtitleTracks = subtitleTracks;
+      });
+    }
+  }
+
   Future<void> _initializePlayer() async {
     try {
       // Detect video format
@@ -320,6 +359,9 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
         playbackSpeed: _playbackSpeed,
         networkCacheSizeMs: _networkCaching ? _networkCacheSize : null,
       );
+
+      // Load tracks
+      await _loadTracks();
 
       // Load subtitles
       await _loadSubtitles();
@@ -900,19 +942,27 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
       final currentIndex =
           videos.indexWhere((v) => v.path == widget.video.path);
 
-      if (currentIndex >= 0 && currentIndex < videos.length - 1) {
-        final nextVideo = videos[currentIndex + 1];
+      if (currentIndex >= 0) {
+        VideoFile? nextVideo;
+        if (currentIndex < videos.length - 1) {
+          nextVideo = videos[currentIndex + 1];
+        } else if (_loopMode == 'All' && videos.isNotEmpty) {
+          // Loop back to start
+          nextVideo = videos[0];
+        }
 
-        // Navigate to next video
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => VideoPlayerPage(
-                video: nextVideo,
-                resumeFromLastPosition: _rememberPosition,
+        if (nextVideo != null) {
+          // Navigate to next video
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => VideoPlayerPage(
+                  video: nextVideo!,
+                  resumeFromLastPosition: _rememberPosition,
+                ),
               ),
-            ),
-          );
+            );
+          }
         }
       }
     }
@@ -971,6 +1021,22 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
         selectedAudioTrack: _selectedAudioTrack,
         selectedSubtitleTrack: _selectedSubtitleTrack,
         selectedVideoTrack: _selectedVideoTrack,
+        backgroundPlayEnabled: _backgroundPlayEnabled,
+        loopMode: _loopMode,
+        onBackgroundPlayEnabledChanged: (value) {
+          setState(() => _backgroundPlayEnabled = value);
+          _playerService?.enableBackgroundPlay(value);
+          _saveAdvancedFeaturesPreferences();
+        },
+        onLoopModeChanged: (value) {
+          setState(() => _loopMode = value);
+          if (value == 'One') {
+            _playerService?.setLooping(true);
+          } else {
+            _playerService?.setLooping(false);
+          }
+          _saveAdvancedFeaturesPreferences();
+        },
         onHardwareAccelerationChanged: (value) async {
           if (_playerService == null || !_isInitialized) {
             setState(() => _hardwareAcceleration = value);
@@ -1078,6 +1144,9 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
           setState(() => _shuffleEnabled = value);
           _saveAdvancedFeaturesPreferences();
         },
+        ambientModeEnabled: _ambientModeEnabled,
+        onAmbientModeChanged: (value) =>
+            setState(() => _ambientModeEnabled = value),
         onQualityChanged: (value) {
           setState(() => _selectedQuality = value);
           _saveAdvancedFeaturesPreferences();
@@ -1697,6 +1766,21 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
             // AppBar removed to prevents duplication with FloatingVideoControls
             body: Stack(
               children: [
+                // Ambient Mode Background
+                if (_ambientModeEnabled && _isInitialized)
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: 0.6,
+                      child: ImageFiltered(
+                        imageFilter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                        child: Transform.scale(
+                          scale: 1.2,
+                          child: _buildVideoPlayer(),
+                        ),
+                      ),
+                    ),
+                  ),
+
                 // Video player - use Positioned.fill to ensure bounded constraints
                 Positioned.fill(
                   child: RepaintBoundary(
@@ -1749,7 +1833,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                                           color: Colors.white, size: 48),
                                     const SizedBox(height: 8),
                                     Text(
-                                      _dragLabel,
+                                      _dragLabel ?? '',
                                       style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 20,
@@ -1776,6 +1860,25 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
 
                 // Large center play button overlay (MX Player style)
                 // Always visible when paused, even if controls are hidden
+                if (!_isPlaying && _isInitialized && !_isLocked && !_isDragging)
+                  Center(
+                    child: GestureDetector(
+                      onTap: _togglePlayPause,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow,
+                          color: Colors.white,
+                          size: 48,
+                        ),
+                      ),
+                    ),
+                  ),
 
                 // Subtitle overlay
                 if (_subtitlesEnabled && _currentSubtitle != null)
@@ -1791,170 +1894,171 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                         );
                       });
                     },
+                    onFontSizeChanged: (fontSize) {
+                      setState(() {
+                        _subtitleSettings = _subtitleSettings.copyWith(
+                          fontSize: fontSize,
+                        );
+                      });
+                    },
                     onTap: _toggleControls,
                   ),
 
                 // Advanced features floating controls overlay (top controls)
                 // Advanced Controls Overlay (Top) - Only when unlocked
                 if (_showControls && !_isLocked)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: RepaintBoundary(
-                      child: FloatingVideoControls(
-                        position: _currentPosition,
-                        duration: _totalDuration,
-                        onTogglePlayPause: _togglePlayPause,
-                        isPlaying: _isPlaying,
-                        showControls: _showControls,
-                        onOpenEqualizer: _openEqualizer,
-                        onOpenVideoEffects: _openVideoEffects,
-                        hasVideoEffects: _brightness != 1.0 ||
-                            _contrast != 1.0 ||
-                            _saturation != 1.0 ||
-                            _hue != 0.0 ||
-                            _gamma != 1.0,
-                        onOpenAdvancedFeatures: _openAdvancedFeatures,
-                        onOpenFitModeSelector: _openFitModeSelector,
-                        onSeekForward: _seekForward,
-                        onSeekBackward: _seekBackward,
-                        onToggleStatistics: () =>
-                            setState(() => _showStatistics = !_showStatistics),
-                        onOpenPlaylist: _openPlaylist,
-                        onOpenChapters: _openChapters,
-                        onPlaybackSpeedChanged: (speed) {
-                          setState(() => _playbackSpeed = speed);
+                  Positioned.fill(
+                    child: FloatingVideoControls(
+                      position: _currentPosition,
+                      duration: _totalDuration,
+                      isPlaying: _isPlaying,
+                      showControls: _showControls,
+                      onTogglePlayPause: _togglePlayPause,
+                      onOpenEqualizer: _openEqualizer,
+                      onOpenVideoEffects: _openVideoEffects,
+                      hasVideoEffects: false, // Placeholder
+                      onOpenAdvancedFeatures: _openAdvancedFeatures,
+                      onOpenFitModeSelector: _openFitModeSelector,
+                      onSeekForward: _seekForward,
+                      onSeekBackward: _seekBackward,
+                      onToggleStatistics: () {
+                        setState(() {
+                          _showStatistics = !_showStatistics;
+                        });
+                      },
+                      onOpenPlaylist: _openPlaylist,
+                      onOpenChapters: _openChapters,
+                      onPlaybackSpeedChanged: (speed) {
+                        setState(() {
+                          _playbackSpeed = speed;
                           _playerService?.setPlaybackSpeed(speed);
-                        },
-                        playbackSpeed: _playbackSpeed,
-                        showStatistics: _showStatistics,
-                        hardwareAcceleration: _hardwareAcceleration,
-                        deinterlace: _deinterlace,
-                        frameDrop: _frameDrop,
-                        networkCaching: _networkCaching,
-                        networkCacheSize: _networkCacheSize,
-                        audioSync: _audioSync,
-                        audioDelay: _audioDelay,
-                        subtitleDelay: _subtitleDelay,
-                        showTimeRemaining: _showTimeRemaining,
-                        showBuffering: _showBuffering,
-                        showQuality: _showQuality,
-                        rememberPosition: _rememberPosition,
-                        autoPlayNext: _autoPlayNext,
-                        shuffleEnabled: _shuffleEnabled,
-                        selectedQuality: _selectedQuality,
-                        selectedAudioTrack: _selectedAudioTrack,
-                        selectedSubtitleTrack: _selectedSubtitleTrack,
-                        selectedVideoTrack: _selectedVideoTrack,
-                        onHardwareAccelerationChanged: (value) async {
-                          if (_playerService == null || !_isInitialized) {
-                            setState(() => _hardwareAcceleration = value);
-                            return;
-                          }
-
-                          setState(() {
-                            _hardwareAcceleration = value;
-                            _isInitialized =
-                                false; // Show loading during switch
-                          });
-
-                          try {
-                            await _playerService!.switchDecoder(
-                              value
-                                  ? vps.DecoderType.hardware
-                                  : vps.DecoderType.software,
-                            );
-                            setState(() => _isInitialized = true);
-                            _saveAdvancedFeaturesPreferences();
-                          } catch (e) {
-                            ErrorHandler.logError(e,
-                                context:
-                                    'VideoPlayerPage.onHardwareAccelerationChanged');
-                            setState(() {
-                              _hardwareAcceleration = !value; // Revert on error
-                              _isInitialized = true;
-                            });
-                          }
-                        },
-                        onDeinterlaceChanged: (value) =>
-                            setState(() => _deinterlace = value),
-                        onFrameDropChanged: (value) =>
-                            setState(() => _frameDrop = value),
-                        onNetworkCachingChanged: (value) =>
-                            setState(() => _networkCaching = value),
-                        onNetworkCacheSizeChanged: (value) =>
-                            setState(() => _networkCacheSize = value),
-                        onAudioSyncChanged: (value) =>
-                            setState(() => _audioSync = value),
-                        onAudioDelayChanged: (value) async {
-                          setState(() => _audioDelay = value);
-                          // Apply audio delay to player if supported
-                          await _playerService?.setAudioDelay(value.toInt());
+                        });
+                      },
+                      playbackSpeed: _playbackSpeed,
+                      showStatistics: _showStatistics,
+                      hardwareAcceleration: _hardwareAcceleration,
+                      deinterlace: _deinterlace,
+                      frameDrop: _frameDrop,
+                      networkCaching: _networkCaching,
+                      networkCacheSize: _networkCacheSize,
+                      audioSync: _audioSync,
+                      audioDelay: _audioDelay,
+                      subtitleDelay: _subtitleDelay,
+                      showTimeRemaining: _showTimeRemaining,
+                      showBuffering: _showBuffering,
+                      showQuality: _showQuality,
+                      rememberPosition: _rememberPosition,
+                      autoPlayNext: _autoPlayNext,
+                      shuffleEnabled: _shuffleEnabled,
+                      selectedQuality: _selectedQuality,
+                      selectedAudioTrack: _selectedAudioTrack,
+                      selectedSubtitleTrack: _selectedSubtitleTrack,
+                      selectedVideoTrack: _selectedVideoTrack,
+                      backgroundPlayEnabled: _backgroundPlayEnabled,
+                      loopMode: _loopMode,
+                      availableAudioTracks: _availableAudioTracks,
+                      availableSubtitleTracks: _availableSubtitleTracks,
+                      ambientModeEnabled: _ambientModeEnabled,
+                      onAmbientModeChanged: (value) =>
+                          setState(() => _ambientModeEnabled = value),
+                      onHardwareAccelerationChanged: (value) async {
+                        setState(() {
+                          _hardwareAcceleration = value;
+                          _isInitialized = false;
+                        });
+                        try {
+                          await _playerService!.switchDecoder(
+                            value
+                                ? vps.DecoderType.hardware
+                                : vps.DecoderType.software,
+                          );
+                          setState(() => _isInitialized = true);
                           _saveAdvancedFeaturesPreferences();
-                        },
-                        onSubtitleDelayChanged: (value) {
+                        } catch (e) {
                           setState(() {
-                            _subtitleDelay = value;
-                            _subtitleService.setDelay(value.toInt());
-                            _subtitleSettings = _subtitleSettings.copyWith(
-                                delayMs: value.toInt());
+                            _hardwareAcceleration = !value;
+                            _isInitialized = true;
                           });
-                        },
-                        onShowTimeRemainingChanged: (value) =>
-                            setState(() => _showTimeRemaining = value),
-                        onShowBufferingChanged: (value) =>
-                            setState(() => _showBuffering = value),
-                        onShowQualityChanged: (value) =>
-                            setState(() => _showQuality = value),
-                        onRememberPositionChanged: (value) =>
-                            setState(() => _rememberPosition = value),
-                        onAutoPlayNextChanged: (value) =>
-                            setState(() => _autoPlayNext = value),
-                        onShuffleEnabledChanged: (value) =>
-                            setState(() => _shuffleEnabled = value),
-                        onQualityChanged: (value) =>
-                            setState(() => _selectedQuality = value),
-                        onAudioTrackChanged: (value) async {
-                          setState(() => _selectedAudioTrack = value);
-                          // Convert track name to index and set it
+                        }
+                      },
+                      onDeinterlaceChanged: (value) =>
+                          setState(() => _deinterlace = value),
+                      onFrameDropChanged: (value) =>
+                          setState(() => _frameDrop = value),
+                      onNetworkCachingChanged: (value) =>
+                          setState(() => _networkCaching = value),
+                      onNetworkCacheSizeChanged: (value) =>
+                          setState(() => _networkCacheSize = value),
+                      onAudioSyncChanged: (value) =>
+                          setState(() => _audioSync = value),
+                      onAudioDelayChanged: (value) async {
+                        setState(() => _audioDelay = value);
+                        await _playerService?.setAudioDelay(value.toInt());
+                        _saveAdvancedFeaturesPreferences();
+                      },
+                      onSubtitleDelayChanged: (value) {
+                        setState(() {
+                          _subtitleDelay = value;
+                          _subtitleService.setDelay(value.toInt());
+                        });
+                      },
+                      onShowTimeRemainingChanged: (value) =>
+                          setState(() => _showTimeRemaining = value),
+                      onShowBufferingChanged: (value) =>
+                          setState(() => _showBuffering = value),
+                      onShowQualityChanged: (value) =>
+                          setState(() => _showQuality = value),
+                      onRememberPositionChanged: (value) =>
+                          setState(() => _rememberPosition = value),
+                      onAutoPlayNextChanged: (value) =>
+                          setState(() => _autoPlayNext = value),
+                      onShuffleEnabledChanged: (value) =>
+                          setState(() => _shuffleEnabled = value),
+                      onQualityChanged: (value) =>
+                          setState(() => _selectedQuality = value),
+                      onAudioTrackChanged: (value) async {
+                        setState(() => _selectedAudioTrack = value);
+                        final tracks = await _playerService?.getAudioTracks() ??
+                            ['Default'];
+                        final trackIndex = tracks.indexOf(value);
+                        if (trackIndex >= 0) {
+                          await _playerService?.setAudioTrack(trackIndex);
+                        }
+                        _saveAdvancedFeaturesPreferences();
+                      },
+                      onSubtitleTrackChanged: (value) async {
+                        setState(() => _selectedSubtitleTrack = value);
+                        if (value != 'None' && _playerService != null) {
                           final tracks =
-                              await _playerService?.getAudioTracks() ??
-                                  ['Default'];
+                              await _playerService!.getSubtitleTracks();
                           final trackIndex = tracks.indexOf(value);
                           if (trackIndex >= 0) {
-                            await _playerService?.setAudioTrack(trackIndex);
+                            await _playerService!.setSubtitleTrack(trackIndex);
                           }
-                          _saveAdvancedFeaturesPreferences();
-                        },
-                        onSubtitleTrackChanged: (value) async {
-                          setState(() => _selectedSubtitleTrack = value);
-                          // Convert track name to index and set it
-                          if (value != 'None' && _playerService != null) {
-                            final tracks =
-                                await _playerService!.getSubtitleTracks();
-                            final trackIndex = tracks.indexOf(value);
-                            if (trackIndex >= 0) {
-                              await _playerService!
-                                  .setSubtitleTrack(trackIndex);
-                            }
+                        }
+                        _saveAdvancedFeaturesPreferences();
+                      },
+                      onVideoTrackChanged: (value) async {
+                        setState(() => _selectedVideoTrack = value);
+                        if (_playerService != null) {
+                          final tracks = await _playerService!.getVideoTracks();
+                          final trackIndex = tracks.indexOf(value);
+                          if (trackIndex >= 0) {
+                            await _playerService!.setVideoTrack(trackIndex);
                           }
-                          _saveAdvancedFeaturesPreferences();
-                        },
-                        onVideoTrackChanged: (value) async {
-                          setState(() => _selectedVideoTrack = value);
-                          // Convert track name to index and set it
-                          if (_playerService != null) {
-                            final tracks =
-                                await _playerService!.getVideoTracks();
-                            final trackIndex = tracks.indexOf(value);
-                            if (trackIndex >= 0) {
-                              await _playerService!.setVideoTrack(trackIndex);
-                            }
-                          }
-                          _saveAdvancedFeaturesPreferences();
-                        },
-                      ),
+                        }
+                        _saveAdvancedFeaturesPreferences();
+                      },
+                      onBackgroundPlayEnabledChanged: (value) async {
+                        setState(() => _backgroundPlayEnabled = value);
+                        _playerService?.enableBackgroundPlay(value);
+                        _saveAdvancedFeaturesPreferences();
+                      },
+                      onLoopModeChanged: (value) async {
+                        setState(() => _loopMode = value);
+                        await _playerService?.setLooping(value == 'One');
+                        _saveAdvancedFeaturesPreferences();
+                      },
                     ),
                   ),
 

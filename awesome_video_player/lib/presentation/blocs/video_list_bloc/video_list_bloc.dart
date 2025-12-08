@@ -19,7 +19,7 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
   int _currentPage = 0;
   static const int _pageSize = 20;
 
-  VideoListBloc._({required this.getVideos}) : super(const VideoListInitial()) {
+  VideoListBloc({required this.getVideos}) : super(const VideoListInitial()) {
     on<LoadVideos>(_onLoadVideos);
     on<LoadMoreVideos>(_onLoadMoreVideos);
     on<SearchVideos>(_onSearchVideos);
@@ -50,7 +50,7 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
     final videoRepository =
         VideoRepositoryImpl(localDataSource: videoLocalDataSource);
     final getVideosUseCase = GetVideos(videoRepository);
-    return VideoListBloc._(getVideos: getVideosUseCase);
+    return VideoListBloc(getVideos: getVideosUseCase);
   }
 
   Future<void> _onLoadVideos(
@@ -416,10 +416,12 @@ class VideoListBloc extends Bloc<VideoListEvent, VideoListState> {
 
     switch (event.sortOption) {
       case VideoSortOption.nameAscending:
-        sortedVideos.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        sortedVideos.sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
         break;
       case VideoSortOption.nameDescending:
-        sortedVideos.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+        sortedVideos.sort(
+            (a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
         break;
       case VideoSortOption.dateAscending:
         sortedVideos.sort((a, b) {

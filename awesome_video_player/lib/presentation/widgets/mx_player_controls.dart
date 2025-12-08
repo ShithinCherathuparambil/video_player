@@ -1,7 +1,4 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:lumeo/core/utils/micro_interactions.dart';
 
 /// MX Player-style comprehensive video controls
 class MxPlayerControls extends StatefulWidget {
@@ -223,13 +220,19 @@ class _MxPlayerControlsState extends State<MxPlayerControls> {
                   ],
                 ),
 
+                // Playback Speed
+                IconButton(
+                  icon: const Icon(Icons.speed, color: Colors.white),
+                  onPressed: () {
+                    _showPlaybackSpeedDialog(context);
+                  },
+                ),
+
                 // Fit Screen (Aspect Ratio)
                 IconButton(
                   icon: const Icon(Icons.aspect_ratio, color: Colors.white),
                   onPressed: () {
                     // Toggle fit mode
-                    // We need a callback for this. 'onToggleFit' or similar.
-                    // VideoPlayerPage handles this.
                     widget.onToggleFit?.call();
                   },
                 ),
@@ -238,6 +241,66 @@ class _MxPlayerControlsState extends State<MxPlayerControls> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showPlaybackSpeedDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[900],
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Playback Speed',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0]
+                        .map((speed) {
+                      final isSelected = widget.playbackSpeed == speed;
+                      return ListTile(
+                        leading: isSelected
+                            ? const Icon(Icons.check, color: Colors.blueAccent)
+                            : const SizedBox(width: 24),
+                        title: Text(
+                          '${speed}x',
+                          style: TextStyle(
+                            color:
+                                isSelected ? Colors.blueAccent : Colors.white,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        onTap: () {
+                          widget.onPlaybackSpeedChanged(speed);
+                          Navigator.pop(context);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

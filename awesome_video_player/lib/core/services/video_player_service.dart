@@ -22,7 +22,7 @@ enum PlayerType {
 /// Universal Video Player Service with VLC-like format support
 ///
 /// Supports all video formats with automatic decoder selection and fallback
-class VideoPlayerService {
+class VideoPlayerService with WidgetsBindingObserver {
   final FormatDetectionService _formatDetection = FormatDetectionService();
 
   // Player controllers
@@ -85,6 +85,9 @@ class VideoPlayerService {
 
       // Enable wakelock to keep screen on
       await WakelockPlus.enable();
+
+      // Register lifecycle observer
+      WidgetsBinding.instance.addObserver(this);
 
       // Handle content:// URIs: BetterPlayer/ExoPlayer can't handle them directly
       // Copy to cache first for reliable playback
@@ -745,6 +748,47 @@ class VideoPlayerService {
     }
   }
 
+  // Background Play Configuration
+  bool _backgroundPlayEnabled = false;
+
+  void enableBackgroundPlay(bool enable) {
+    _backgroundPlayEnabled = enable;
+    debugPrint(
+        'VideoPlayerService: Background play ${enable ? 'enabled' : 'disabled'}');
+    // If disabling and currently in background? We can't detect "currently in background" easily here without tracking state,
+    // but the observer will handle future transitions.
+  }
+
+  bool get isBackgroundPlayEnabled => _backgroundPlayEnabled;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (!_backgroundPlayEnabled) {
+      if (state == AppLifecycleState.paused ||
+          state == AppLifecycleState.inactive) {
+        if (_isPlaying) {
+          pause();
+          debugPrint(
+              'VideoPlayerService: Paused due to app backgrounding (Background Play disabled)');
+        }
+      }
+    }
+  }
+
+  Future<void> setLooping(bool looping) async {
+    if (!_isInitialized) return;
+
+    try {
+      if (_currentPlayerType == PlayerType.betterPlayer) {
+        _betterPlayerController?.setLooping(looping);
+      }
+      // VLC support if needed
+    } catch (e) {
+      debugPrint('VideoPlayerService: Error setting looping: $e');
+    }
+  }
+
   void _handleBetterPlayerEvent(BetterPlayerEvent event) {
     switch (event.betterPlayerEventType) {
       case BetterPlayerEventType.progress:
@@ -784,6 +828,7 @@ class VideoPlayerService {
     _isDisposing = true;
 
     try {
+      WidgetsBinding.instance.removeObserver(this);
       await WakelockPlus.disable();
 
       switch (_currentPlayerType) {

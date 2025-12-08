@@ -11,9 +11,12 @@ void main() {
     late SaveSubtitlesEnabled usecase;
     late MockSettingsRepository mockSettingsRepository;
 
+    late AppSettings dummySettings;
+
     setUp(() {
       mockSettingsRepository = MockFactories.createMockSettingsRepository();
       usecase = SaveSubtitlesEnabled(mockSettingsRepository);
+      dummySettings = AppSettingsBuilder().build();
     });
 
     group('Successful Execution Tests', () {
@@ -95,8 +98,7 @@ void main() {
 
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => initialSettings);
-        when(mockSettingsRepository.saveSettings(isA<AppSettings>()))
-            .thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
 
         // act - toggle multiple times
         await usecase.call(true);
@@ -130,12 +132,13 @@ void main() {
 
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => currentSettings);
-        when(mockSettingsRepository.saveSettings(any)).thenThrow(saveException);
+        when(mockSettingsRepository.saveSettings(dummySettings))
+            .thenThrow(saveException);
 
         // act & assert
         expect(() => usecase.call(true), throwsA(saveException));
         verify(mockSettingsRepository.getSettings()).called(1);
-        verify(mockSettingsRepository.saveSettings(any)).called(1);
+        verify(mockSettingsRepository.saveSettings(captureAny)).called(1);
       });
 
       test('should propagate storage exceptions', () async {
@@ -145,13 +148,13 @@ void main() {
 
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => currentSettings);
-        when(mockSettingsRepository.saveSettings(any))
+        when(mockSettingsRepository.saveSettings(dummySettings))
             .thenThrow(storageException);
 
         // act & assert
         expect(() => usecase.call(false), throwsA(storageException));
         verify(mockSettingsRepository.getSettings()).called(1);
-        verify(mockSettingsRepository.saveSettings(any)).called(1);
+        verify(mockSettingsRepository.saveSettings(captureAny)).called(1);
       });
     });
 
@@ -168,7 +171,8 @@ void main() {
 
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => originalSettings);
-        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(dummySettings))
+            .thenAnswer((_) async {});
 
         // act
         await usecase.call(true);
@@ -197,7 +201,8 @@ void main() {
 
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settingsWithNullGridView);
-        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(dummySettings))
+            .thenAnswer((_) async {});
 
         // act
         await usecase.call(true);
@@ -219,7 +224,8 @@ void main() {
         final settings = AppSettingsBuilder().build();
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settings);
-        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(dummySettings))
+            .thenAnswer((_) async {});
 
         // act
         final futures = [
@@ -231,7 +237,7 @@ void main() {
 
         // assert
         verify(mockSettingsRepository.getSettings()).called(3);
-        verify(mockSettingsRepository.saveSettings(any)).called(3);
+        verify(mockSettingsRepository.saveSettings(captureAny)).called(3);
       });
 
       test('should handle rapid successive calls', () async {
@@ -239,7 +245,8 @@ void main() {
         final settings = AppSettingsBuilder().build();
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settings);
-        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(dummySettings))
+            .thenAnswer((_) async {});
 
         // act - simulate rapid toggling
         for (int i = 0; i < 5; i++) {
@@ -248,7 +255,7 @@ void main() {
 
         // assert
         verify(mockSettingsRepository.getSettings()).called(5);
-        verify(mockSettingsRepository.saveSettings(any)).called(5);
+        verify(mockSettingsRepository.saveSettings(captureAny)).called(5);
       });
     });
 
@@ -260,7 +267,8 @@ void main() {
 
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => disabledSettings);
-        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(dummySettings))
+            .thenAnswer((_) async {});
 
         // act
         await usecase.call(true);
@@ -279,7 +287,8 @@ void main() {
 
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => enabledSettings);
-        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(dummySettings))
+            .thenAnswer((_) async {});
 
         // act - enable when already enabled
         await usecase.call(true);
@@ -290,7 +299,7 @@ void main() {
             .single as AppSettings;
         expect(captured.subtitlesEnabled, true);
         verify(mockSettingsRepository.getSettings()).called(1);
-        verify(mockSettingsRepository.saveSettings(any)).called(1);
+        verify(mockSettingsRepository.saveSettings(captureAny)).called(1);
       });
     });
 
@@ -301,14 +310,15 @@ void main() {
             AppSettingsBuilder().withSubtitlesEnabled(false).build();
         when(mockSettingsRepository.getSettings())
             .thenAnswer((_) async => settings);
-        when(mockSettingsRepository.saveSettings(any)).thenAnswer((_) async {});
+        when(mockSettingsRepository.saveSettings(dummySettings))
+            .thenAnswer((_) async {});
 
         // act
         await usecase.call(true);
 
         // assert
         verify(mockSettingsRepository.getSettings()).called(1);
-        verify(mockSettingsRepository.saveSettings(any)).called(1);
+        verify(mockSettingsRepository.saveSettings(captureAny)).called(1);
         verifyNoMoreInteractions(mockSettingsRepository);
       });
     });

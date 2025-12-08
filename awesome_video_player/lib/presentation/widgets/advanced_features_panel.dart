@@ -19,6 +19,8 @@ class AdvancedFeaturesPanel extends StatefulWidget {
   final String selectedAudioTrack;
   final String selectedSubtitleTrack;
   final String selectedVideoTrack;
+  final bool backgroundPlayEnabled;
+  final String loopMode; // 'Off', 'One', 'All'
 
   final ValueChanged<bool> onHardwareAccelerationChanged;
   final ValueChanged<bool> onDeinterlaceChanged;
@@ -38,6 +40,10 @@ class AdvancedFeaturesPanel extends StatefulWidget {
   final ValueChanged<String> onAudioTrackChanged;
   final ValueChanged<String> onSubtitleTrackChanged;
   final ValueChanged<String> onVideoTrackChanged;
+  final ValueChanged<bool> onBackgroundPlayEnabledChanged;
+  final ValueChanged<String> onLoopModeChanged;
+  final bool ambientModeEnabled;
+  final ValueChanged<bool> onAmbientModeChanged;
 
   const AdvancedFeaturesPanel({
     super.key,
@@ -59,6 +65,8 @@ class AdvancedFeaturesPanel extends StatefulWidget {
     required this.selectedAudioTrack,
     required this.selectedSubtitleTrack,
     required this.selectedVideoTrack,
+    required this.backgroundPlayEnabled,
+    required this.loopMode,
     required this.onHardwareAccelerationChanged,
     required this.onDeinterlaceChanged,
     required this.onFrameDropChanged,
@@ -77,6 +85,10 @@ class AdvancedFeaturesPanel extends StatefulWidget {
     required this.onAudioTrackChanged,
     required this.onSubtitleTrackChanged,
     required this.onVideoTrackChanged,
+    required this.onBackgroundPlayEnabledChanged,
+    required this.onLoopModeChanged,
+    required this.ambientModeEnabled,
+    required this.onAmbientModeChanged,
   });
 
   @override
@@ -182,6 +194,8 @@ class _AdvancedFeaturesPanelState extends State<AdvancedFeaturesPanel> {
                         widget.onShowBufferingChanged),
                     _buildSwitchRow('Show Quality', widget.showQuality,
                         widget.onShowQualityChanged),
+                    _buildSwitchRow('Cinematic Ambient Mode',
+                        widget.ambientModeEnabled, widget.onAmbientModeChanged),
                   ]),
                   const SizedBox(height: 20),
                   _buildControlSection('Playback', [
@@ -193,6 +207,12 @@ class _AdvancedFeaturesPanelState extends State<AdvancedFeaturesPanel> {
                         widget.onAutoPlayNextChanged),
                     _buildSwitchRow('Shuffle', widget.shuffleEnabled,
                         widget.onShuffleEnabledChanged),
+                    _buildSwitchRow(
+                        'Background Play',
+                        widget.backgroundPlayEnabled,
+                        widget.onBackgroundPlayEnabledChanged),
+                    _buildDropdownRow('Loop Mode', widget.loopMode,
+                        ['Off', 'One', 'All'], widget.onLoopModeChanged),
                   ]),
                   const SizedBox(height: 20),
                   _buildControlSection('Quality & Tracks', [

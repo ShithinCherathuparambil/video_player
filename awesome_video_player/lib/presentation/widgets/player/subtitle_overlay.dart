@@ -9,6 +9,7 @@ class SubtitleOverlay extends StatefulWidget {
   final Subtitle? currentSubtitle;
   final SubtitleSettings settings;
   final Function(double) onPositionChanged;
+  final Function(double)? onFontSizeChanged;
   final VoidCallback? onTap;
 
   const SubtitleOverlay({
@@ -16,6 +17,7 @@ class SubtitleOverlay extends StatefulWidget {
     this.currentSubtitle,
     required this.settings,
     required this.onPositionChanged,
+    this.onFontSizeChanged,
     this.onTap,
   });
 
@@ -78,51 +80,84 @@ class _SubtitleOverlayState extends State<SubtitleOverlay>
     }
   }
 
-  void _onPanStart(DragStartDetails details) {
+  double _initialFontSize = 16.0;
+  double _baseScale = 1.0;
+
+  void _onScaleStart(ScaleStartDetails details) {
     _dragAnimationController.forward();
+    _initialFontSize = widget.settings.fontSize;
+    _baseScale = 1.0;
     MicroInteractions.hapticFeedback(
       type: HapticFeedbackType.lightImpact,
     );
   }
 
-  void _onPanUpdate(DragUpdateDetails details) {
+  void _onScaleUpdate(ScaleUpdateDetails details) {
     setState(() {
+      // Handle Position (Panning)
       final screenHeight = MediaQuery.of(context).size.height;
-      final delta = details.delta.dy / screenHeight;
-      final newPosition = (_currentPosition - delta).clamp(0.0, 0.9);
-      _currentPosition = newPosition;
+      final delta = details.focalPointDelta.dy / screenHeight;
+      // Invert delta because dragging up/down is intuitive
+      // (dragging down increases top-offset, but here we use bottom-offset)
+      // Actually, if using bottom-offset: moving finger down (positive delta) -> decreasing bottom offset?
+      // Let's stick to existing logic: details.delta.dy / screenHeight
+      // _currentPosition is percentage from bottom??
+      // Let's check build method: bottom: screenHeight * _currentPosition
+      // So larger _currentPosition = higher up.
+      // Dragging UP (negative delta) should INCREASE _currentPosition.
+      // Dragging DOWN (positive delta) should DECREASE _currentPosition.
+      // So: _currentPosition - delta (since delta is positive when down) matches.
 
-      // Check for snap zones
-      final zones = [0.1, 0.5, 0.8];
-      double closestZone = zones[0];
-      double minDistance = (newPosition - zones[0]).abs();
-
-      for (final zone in zones) {
-        final distance = (newPosition - zone).abs();
-        if (distance < minDistance) {
-          minDistance = distance;
-          closestZone = zone;
+      if (details.scale == 1.0) {
+        // Pure drag
+        final newPosition = (_currentPosition - delta).clamp(0.0, 0.9);
+        _currentPosition = newPosition;
+        _checkSnapZones(newPosition);
+        widget.onPositionChanged(_currentPosition);
+      } else {
+        // Pinch / Scale
+        // Use a threshold to prevent accidental resizing when just trying to move vertically
+        if ((details.scale - 1.0).abs() > 0.05) {
+          final newScale = _baseScale * details.scale;
+          final newSize = (_initialFontSize * newScale).clamp(10.0, 60.0);
+          widget.onFontSizeChanged?.call(newSize);
         }
       }
-
-      // Show snap indicator if close to a zone
-      if (minDistance < 0.1) {
-        _showSnapIndicator = true;
-        _snapTarget = closestZone;
-        _snapAnimationController.forward();
-      } else {
-        _showSnapIndicator = false;
-        _snapAnimationController.stop();
-        _snapAnimationController.reset();
-      }
-
-      widget.onPositionChanged(_currentPosition);
     });
   }
 
-  void _onPanEnd(DragEndDetails details) {
+  void _onScaleEnd(ScaleEndDetails details) {
     _dragAnimationController.reverse();
+    _handleSnapEnd();
+  }
 
+  void _checkSnapZones(double newPosition) {
+    // Check for snap zones
+    final zones = [0.1, 0.5, 0.8];
+    double closestZone = zones[0];
+    double minDistance = (newPosition - zones[0]).abs();
+
+    for (final zone in zones) {
+      final distance = (newPosition - zone).abs();
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestZone = zone;
+      }
+    }
+
+    // Show snap indicator if close to a zone
+    if (minDistance < 0.1) {
+      _showSnapIndicator = true;
+      _snapTarget = closestZone;
+      _snapAnimationController.forward();
+    } else {
+      _showSnapIndicator = false;
+      _snapAnimationController.stop();
+      _snapAnimationController.reset();
+    }
+  }
+
+  void _handleSnapEnd() {
     // Snap to zone if close enough
     final zones = [0.1, 0.5, 0.8];
     double closestZone = zones[0];
@@ -233,9 +268,9 @@ class _SubtitleOverlayState extends State<SubtitleOverlay>
           left: 0,
           right: 0,
           child: GestureDetector(
-            onPanStart: _onPanStart,
-            onPanUpdate: _onPanUpdate,
-            onPanEnd: _onPanEnd,
+            onScaleStart: _onScaleStart,
+            onScaleUpdate: _onScaleUpdate,
+            onScaleEnd: _onScaleEnd,
             onTap: widget.onTap,
             child: AnimatedBuilder(
               animation: _dragScale,
@@ -324,4 +359,3 @@ class _SubtitleOverlayState extends State<SubtitleOverlay>
     );
   }
 }
-

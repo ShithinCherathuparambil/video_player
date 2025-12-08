@@ -2,8 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:lumeo/domain/entities/video_file.dart';
-import 'package:lumeo/domain/usecases/get_videos.dart';
-import 'package:lumeo/domain/repositories/video_repository.dart';
+
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_bloc.dart';
 
 import 'package:lumeo/presentation/blocs/video_list_bloc/video_list_state.dart';
@@ -11,19 +10,6 @@ import 'package:lumeo/data/datasources/video_local_data_source.dart'; // For Per
 import '../../../helpers/mock_factories.dart';
 
 // Manual mock for GetVideos UseCase
-class MockGetVideos extends Mock implements GetVideos {
-  @override
-  Future<List<VideoFile>> call() => super.noSuchMethod(
-        Invocation.method(#call, []),
-        returnValue: Future.value(<VideoFile>[]),
-      );
-
-  @override
-  VideoRepository get repository => super.noSuchMethod(
-        Invocation.getter(#repository),
-        returnValue: MockVideoRepository(),
-      );
-}
 
 void main() {
   // VideoListBloc instance will be created in build() method of blocTest

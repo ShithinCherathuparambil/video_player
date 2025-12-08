@@ -160,8 +160,6 @@ void main() {
         await SecureStorage.setSecureString(testKey, testValue);
 
         // Calculate expected hash
-        final expectedHash =
-            'a8b2c3d4e5f6'; // This would be calculated properly in real implementation
 
         // Note: This test would need the actual hash calculation
         // For now, we just test that the method exists and handles errors

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:lumeo/domain/entities/app_settings.dart';
 import 'package:lumeo/domain/usecases/save_theme_settings.dart';
