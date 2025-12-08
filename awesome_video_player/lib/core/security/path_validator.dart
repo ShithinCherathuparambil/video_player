@@ -1,21 +1,10 @@
 import 'dart:io';
 import 'package:path/path.dart' as path;
 
+import 'package:lumeo/core/constants/video_formats.dart';
+
 /// Security utility for validating file paths and preventing path traversal attacks
 class PathValidator {
-  // Allowed video file extensions
-  static const List<String> _allowedVideoExtensions = [
-    '.mp4',
-    '.mov',
-    '.avi',
-    '.mkv',
-    '.wmv',
-    '.flv',
-    '.webm',
-    '.m4v',
-    '.3gp'
-  ];
-
   // Dangerous path patterns that should be blocked
   static const List<String> _dangerousPatterns = [
     '..',
@@ -55,7 +44,10 @@ class PathValidator {
     if (filePath.isEmpty) return false;
 
     final extension = path.extension(filePath).toLowerCase();
-    return _allowedVideoExtensions.contains(extension);
+    if (extension.startsWith('.')) {
+      return VideoFormats.extensions.contains(extension.substring(1));
+    }
+    return false;
   }
 
   /// Sanitizes a search query to prevent injection attacks

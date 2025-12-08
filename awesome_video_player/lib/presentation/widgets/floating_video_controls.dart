@@ -204,8 +204,6 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.showControls) return const SizedBox.shrink();
-
     return AnimatedBuilder(
       animation:
           Listenable.merge([_fadeAnimation, _scaleAnimation, _slideAnimation]),
@@ -222,22 +220,19 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0.8),
+                      Colors.black.withOpacity(0.4),
                       Colors.transparent,
                       Colors.transparent,
-                      Colors.black.withOpacity(0.8),
+                      Colors.black.withOpacity(0.4),
                     ],
                   ),
                 ),
                 child: SafeArea(
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       // Top floating controls - comprehensive 3-dot menu
                       _buildTopFloatingControls(),
-
-                      const Spacer(),
-
-                      const Spacer(),
                     ],
                   ),
                 ),
@@ -251,100 +246,77 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
 
   Widget _buildTopFloatingControls() {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
         children: [
-          const Spacer(),
-
-          // Comprehensive 3-dot menu
+          // Left: Back & Title
           _buildGlassButton(
-            icon: _showQuickControls ? Icons.close : Icons.more_vert,
-            onPressed: () {
-              setState(() {
-                _showQuickControls = !_showQuickControls;
-                if (!_showQuickControls) {
-                  _showAdvancedMenu = false;
-                }
-              });
-            },
+            icon: Icons.arrow_back,
+            onPressed: () => Navigator.of(context).pop(),
+            backgroundColor: Colors.transparent, // Cleaner look
           ),
-
-          if (_showQuickControls) ...[
-            const SizedBox(width: 8),
-            // Use Flexible to prevent overflow
-            Flexible(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildGlassButton(
-                      icon: Icons.graphic_eq,
-                      onPressed: widget.onOpenEqualizer,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildGlassButton(
-                      icon: widget.hasVideoEffects
-                          ? Icons.filter_alt
-                          : Icons.filter,
-                      onPressed: widget.onOpenVideoEffects,
-                    ),
-                    const SizedBox(width: 8),
-                    if (widget.onOpenFitModeSelector != null)
-                      _buildGlassButton(
-                        icon: Icons.fit_screen,
-                        onPressed: widget.onOpenFitModeSelector!,
-                      ),
-                    if (widget.onOpenFitModeSelector != null)
-                      const SizedBox(width: 8),
-                    _buildGlassButton(
-                      icon: Icons.speed,
-                      onPressed: _showPlaybackSpeedOptions,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildGlassButton(
-                      icon: Icons.settings,
-                      onPressed: () {
-                        setState(() {
-                          _showAdvancedMenu = !_showAdvancedMenu;
-                        });
-                        if (_showAdvancedMenu) {
-                          _showAdvancedFeaturesPanel();
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _buildGlassButton(
-                      icon: Icons.skip_next,
-                      onPressed: widget.onSeekForward,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildGlassButton(
-                      icon: Icons.skip_previous,
-                      onPressed: widget.onSeekBackward,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildGlassButton(
-                      icon: widget.showStatistics
-                          ? Icons.analytics
-                          : Icons.analytics_outlined,
-                      onPressed: widget.onToggleStatistics,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildGlassButton(
-                      icon: Icons.playlist_play,
-                      onPressed: widget.onOpenPlaylist,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildGlassButton(
-                      icon: Icons.bookmark,
-                      onPressed: widget.onOpenChapters,
-                    ),
-                  ],
-                ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: const Text(
+              'Video Title', // TODO: Pass title
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ],
+          ),
+
+          // Right: Settings & Tracks
+          // HW/SW Decoder Toggle (Placeholder logic for now, standard MX feature)
+          _buildGlassButton(
+            icon: widget.hardwareAcceleration ? Icons.memory : Icons.create,
+            onPressed: () {
+              // Toggle HW/SW
+              widget
+                  .onHardwareAccelerationChanged(!widget.hardwareAcceleration);
+            },
+            backgroundColor: Colors.transparent,
+          ),
+          const SizedBox(width: 8),
+
+          // Audio Track
+          _buildGlassButton(
+            icon: Icons.audiotrack,
+            onPressed: () {
+              // Show audio track selection (reusing existing logic or new modal)
+              // We can trigger the parent's audio selection or show a modal here.
+              // For now, let's assume we use the existing method or similar.
+            },
+            backgroundColor: Colors.transparent,
+          ),
+          const SizedBox(width: 8),
+
+          // Subtitle Track
+          _buildGlassButton(
+            icon: Icons.subtitles,
+            onPressed: () {
+              // Show subtitle selection
+            },
+            backgroundColor: Colors.transparent,
+          ),
+          const SizedBox(width: 8),
+
+          // Settings (Kebab)
+          _buildGlassButton(
+            icon: Icons.more_vert,
+            onPressed: () {
+              // Show advanced menu or old quick menu
+              setState(() {
+                _showAdvancedMenu = !_showAdvancedMenu;
+              });
+              if (_showAdvancedMenu) {
+                _showAdvancedFeaturesPanel();
+              }
+            },
+            backgroundColor: Colors.transparent,
+          ),
         ],
       ),
     );

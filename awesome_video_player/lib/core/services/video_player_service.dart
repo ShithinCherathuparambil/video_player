@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:better_player/better_player.dart';
+import 'package:better_player_plus/better_player_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lumeo/domain/entities/video_file.dart';
@@ -49,7 +49,8 @@ class VideoPlayerService {
   int? _networkCacheSizeMs; // Saved network cache size preference
 
   // Getters
-  dynamic get betterPlayerController => _isDisposing ? null : _betterPlayerController;
+  dynamic get betterPlayerController =>
+      _isDisposing ? null : _betterPlayerController;
   dynamic get vlcController => _isDisposing ? null : _vlcController;
   DecoderType get currentDecoder => _currentDecoder;
   VideoFile? get currentVideo => _currentVideo;
@@ -89,27 +90,33 @@ class VideoPlayerService {
       // Copy to cache first for reliable playback
       String actualVideoPath = videoPath;
       if (videoPath.startsWith('content://')) {
-        debugPrint('VideoPlayerService: Detected content:// URI, copying to cache...');
+        debugPrint(
+            'VideoPlayerService: Detected content:// URI, copying to cache...');
         debugPrint('VideoPlayerService: Original path: $videoPath');
         try {
-          final cachedPath = await VideoIntentService.copyContentUriToCache(videoPath)
-              .timeout(
+          final cachedPath =
+              await VideoIntentService.copyContentUriToCache(videoPath).timeout(
             const Duration(minutes: 5),
             onTimeout: () {
-              debugPrint('VideoPlayerService: Copy operation timed out after 5 minutes');
+              debugPrint(
+                  'VideoPlayerService: Copy operation timed out after 5 minutes');
               return null;
             },
           );
-          
+
           if (cachedPath != null && cachedPath.isNotEmpty) {
             actualVideoPath = cachedPath;
-            debugPrint('VideoPlayerService: Content URI copied to cache successfully: $cachedPath');
+            debugPrint(
+                'VideoPlayerService: Content URI copied to cache successfully: $cachedPath');
           } else {
-            debugPrint('VideoPlayerService: WARNING - Copy returned null or empty path!');
-            debugPrint('VideoPlayerService: This will likely cause playback to fail.');
+            debugPrint(
+                'VideoPlayerService: WARNING - Copy returned null or empty path!');
+            debugPrint(
+                'VideoPlayerService: This will likely cause playback to fail.');
             // Don't use the original content:// URI - it will fail
             // Throw an error so the caller knows
-            throw Exception('Failed to copy content:// URI to cache. Cannot play content:// URIs directly.');
+            throw Exception(
+                'Failed to copy content:// URI to cache. Cannot play content:// URIs directly.');
           }
         } catch (e, stackTrace) {
           debugPrint('VideoPlayerService: Error copying content URI: $e');
@@ -123,12 +130,13 @@ class VideoPlayerService {
       final formatResult = await _formatDetection.detectFormat(actualVideoPath);
 
       // Always try BetterPlayer first (primary engine)
-      bool initialized =
-          await _tryBetterPlayer(actualVideoPath, formatResult, networkCacheSizeMs);
+      bool initialized = await _tryBetterPlayer(
+          actualVideoPath, formatResult, networkCacheSizeMs);
 
       // VLC is currently disabled (_tryVlcPlayer returns false)
       if (!initialized) {
-        initialized = await _tryVlcPlayer(videoPath, formatResult, networkCacheSizeMs);
+        initialized =
+            await _tryVlcPlayer(videoPath, formatResult, networkCacheSizeMs);
       }
 
       // Final fallback to video_player (basic support - currently stubbed)
@@ -150,18 +158,20 @@ class VideoPlayerService {
   }
 
   /// Try initializing with better_player
-  Future<bool> _tryBetterPlayer(
-      String videoPath, FormatDetectionResult formatResult, int? networkCacheSizeMs) async {
+  Future<bool> _tryBetterPlayer(String videoPath,
+      FormatDetectionResult formatResult, int? networkCacheSizeMs) async {
     try {
       // BetterPlayer can handle content:// URIs on Android when using file type
       final isContentUri = videoPath.startsWith('content://');
       final dataSourceType = formatResult.isNetworkStream
           ? BetterPlayerDataSourceType.network
           : BetterPlayerDataSourceType.file;
-      
-      debugPrint('VideoPlayerService: Initializing BetterPlayer with path: $videoPath');
-      debugPrint('VideoPlayerService: Data source type: $dataSourceType, isContentUri: $isContentUri');
-      
+
+      debugPrint(
+          'VideoPlayerService: Initializing BetterPlayer with path: $videoPath');
+      debugPrint(
+          'VideoPlayerService: Data source type: $dataSourceType, isContentUri: $isContentUri');
+
       final dataSource = BetterPlayerDataSource(
         dataSourceType,
         videoPath,
@@ -175,11 +185,13 @@ class VideoPlayerService {
         looping: false,
         aspectRatio: 16 / 9,
         fit: BoxFit.contain,
-        handleLifecycle: false, // Disable automatic lifecycle handling to prevent unwanted pauses
+        handleLifecycle:
+            false, // Disable automatic lifecycle handling to prevent unwanted pauses
         allowedScreenSleep: false, // Keep screen on during playback
         eventListener: _handleBetterPlayerEvent,
         controlsConfiguration: const BetterPlayerControlsConfiguration(
-          showControls: false, // Disable built-in controls - we use custom MX Player controls
+          showControls:
+              false, // Disable built-in controls - we use custom MX Player controls
           enableFullscreen: false,
           enableSubtitles: false,
           enablePlaybackSpeed: false,
@@ -213,7 +225,7 @@ class VideoPlayerService {
         final vc = _betterPlayerController!.videoPlayerController;
         if (vc != null && vc.value.initialized) {
           _duration = vc.value.duration ?? Duration.zero;
-          
+
           // Update playing state from controller to keep it in sync
           // Only update if there's a real change to avoid unnecessary state updates
           final isCurrentlyPlaying = vc.value.isPlaying;
@@ -229,23 +241,29 @@ class VideoPlayerService {
       return true;
     } on PlatformException catch (e) {
       // If BetterPlayer fails with a content:// URI, try copying to cache and retry
-      if (videoPath.startsWith('content://') && 
-          (e.code == 'VideoError' || e.message?.contains('Source error') == true)) {
-        debugPrint('VideoPlayerService: BetterPlayer failed with content:// URI, trying cached copy...');
+      if (videoPath.startsWith('content://') &&
+          (e.code == 'VideoError' ||
+              e.message?.contains('Source error') == true)) {
+        debugPrint(
+            'VideoPlayerService: BetterPlayer failed with content:// URI, trying cached copy...');
         try {
-          final cachedPath = await VideoIntentService.copyContentUriToCache(videoPath);
+          final cachedPath =
+              await VideoIntentService.copyContentUriToCache(videoPath);
           if (cachedPath != null) {
-            debugPrint('VideoPlayerService: Content URI copied to cache: $cachedPath');
+            debugPrint(
+                'VideoPlayerService: Content URI copied to cache: $cachedPath');
             // Dispose the failed controller
             try {
               await _betterPlayerController?.dispose();
             } catch (_) {}
             _betterPlayerController = null;
             // Retry with cached path
-            return await _tryBetterPlayer(cachedPath, formatResult, networkCacheSizeMs);
+            return await _tryBetterPlayer(
+                cachedPath, formatResult, networkCacheSizeMs);
           }
         } catch (copyError) {
-          debugPrint('VideoPlayerService: Failed to copy content URI: $copyError');
+          debugPrint(
+              'VideoPlayerService: Failed to copy content URI: $copyError');
         }
       }
       debugPrint('VideoPlayerService: better_player failed: $e');
@@ -257,13 +275,14 @@ class VideoPlayerService {
   }
 
   /// Try initializing with VLC player
-  Future<bool> _tryVlcPlayer(
-      String videoPath, FormatDetectionResult formatResult, int? networkCacheSizeMs) async {
+  Future<bool> _tryVlcPlayer(String videoPath,
+      FormatDetectionResult formatResult, int? networkCacheSizeMs) async {
     // Temporary: disable VLC on this build to avoid platform channel crashes.
     // The flutter_vlc_player plugin is throwing:
     // PlatformException(channel-error, Unable to establish connection on channel...)
     // We fall back to BetterPlayer / video_player instead.
-    debugPrint('VideoPlayerService: VLC disabled, skipping VLC initialization.');
+    debugPrint(
+        'VideoPlayerService: VLC disabled, skipping VLC initialization.');
     return false;
   }
 
@@ -279,82 +298,41 @@ class VideoPlayerService {
     }
   }
 
-  /// Play/Pause toggle
   Future<void> togglePlayPause() async {
-    if (_isDisposing || !_isInitialized) {
-      debugPrint('VideoPlayerService: Cannot play/pause - player not initialized or disposing');
-      return;
+    if (_isPlaying) {
+      await pause();
+    } else {
+      await play();
     }
+  }
 
+  Future<void> play() async {
+    if (!_isInitialized) return;
     try {
-      switch (_currentPlayerType) {
-        case PlayerType.betterPlayer:
-          if (_betterPlayerController == null) {
-            debugPrint('VideoPlayerService: BetterPlayer controller is null');
-            break;
-          }
-          
-          // Check actual controller state instead of internal flag
-          final videoPlayerController = _betterPlayerController!.videoPlayerController;
-          if (videoPlayerController != null) {
-            // Wait for initialization if not ready
-            if (!videoPlayerController.value.initialized) {
-              debugPrint('VideoPlayerService: Waiting for BetterPlayer to initialize...');
-              // Wait up to 2 seconds for initialization
-              int attempts = 0;
-              while (!videoPlayerController.value.initialized && attempts < 20) {
-                await Future.delayed(const Duration(milliseconds: 100));
-                attempts++;
-              }
-              
-              if (!videoPlayerController.value.initialized) {
-                debugPrint('VideoPlayerService: BetterPlayer failed to initialize after waiting');
-                break;
-              }
-            }
-            
-            final isCurrentlyPlaying = videoPlayerController.value.isPlaying;
-            debugPrint('VideoPlayerService: Current playing state: $isCurrentlyPlaying');
-            
-            if (isCurrentlyPlaying) {
-              await _betterPlayerController!.pause();
-              _isPlaying = false;
-              debugPrint('VideoPlayerService: Paused video');
-            } else {
-              await _betterPlayerController!.play();
-              _isPlaying = true;
-              debugPrint('VideoPlayerService: Started playing video');
-            }
-          } else {
-            debugPrint('VideoPlayerService: videoPlayerController is null, using fallback');
-            // Fallback to internal state if controller not ready
-            if (_isPlaying) {
-              await _betterPlayerController!.pause();
-              _isPlaying = false;
-            } else {
-              await _betterPlayerController!.play();
-              _isPlaying = true;
-            }
-          }
-          _playingController?.add(_isPlaying);
-          break;
-        case PlayerType.vlc:
-          if (_vlcController == null) break;
-          if (_isPlaying) {
-            await _vlcController!.pause();
-            _isPlaying = false;
-          } else {
-            await _vlcController!.play();
-            _isPlaying = true;
-          }
-          _playingController?.add(_isPlaying);
-          break;
-        case PlayerType.videoPlayer:
-          // Not used
-          break;
+      if (_currentPlayerType == PlayerType.betterPlayer) {
+        await _betterPlayerController?.play();
+      } else if (_currentPlayerType == PlayerType.vlc) {
+        await _vlcController?.play();
       }
+      _isPlaying = true;
+      _playingController?.add(true);
     } catch (e) {
-      debugPrint('VideoPlayerService: Error toggling play/pause: $e');
+      debugPrint('VideoPlayerService: Error playing: $e');
+    }
+  }
+
+  Future<void> pause() async {
+    if (!_isInitialized) return;
+    try {
+      if (_currentPlayerType == PlayerType.betterPlayer) {
+        await _betterPlayerController?.pause();
+      } else if (_currentPlayerType == PlayerType.vlc) {
+        await _vlcController?.pause();
+      }
+      _isPlaying = false;
+      _playingController?.add(false);
+    } catch (e) {
+      debugPrint('VideoPlayerService: Error pausing: $e');
     }
   }
 
@@ -435,7 +413,8 @@ class VideoPlayerService {
   }
 
   /// Switch decoder (hardware <-> software)
-  Future<void> switchDecoder([DecoderType? decoderType, int? networkCacheSizeMs]) async {
+  Future<void> switchDecoder(
+      [DecoderType? decoderType, int? networkCacheSizeMs]) async {
     if (_currentVideo == null || !_isInitialized) return;
 
     try {
@@ -455,8 +434,10 @@ class VideoPlayerService {
       // Use provided network cache size, saved preference, or detect from format
       int? networkCacheSize = networkCacheSizeMs ?? _networkCacheSizeMs;
       if (networkCacheSize == null) {
-        final formatResult = await _formatDetection.detectFormat(_currentVideo!.path);
-        networkCacheSize = formatResult.isNetworkStream ? 1000 : null; // Default cache size
+        final formatResult =
+            await _formatDetection.detectFormat(_currentVideo!.path);
+        networkCacheSize =
+            formatResult.isNetworkStream ? 1000 : null; // Default cache size
       }
 
       await initializePlayer(
@@ -480,7 +461,7 @@ class VideoPlayerService {
     // Reapply current volume with new boost
     // Note: This requires storing the base volume, which we'll do via setVolume
   }
-  
+
   /// Get current audio boost
   double getAudioBoost() {
     return _audioBoost;
@@ -546,10 +527,10 @@ class VideoPlayerService {
     } catch (e) {
       debugPrint('VideoPlayerService: Error getting audio tracks: $e');
     }
-    
+
     return ['Default'];
   }
-  
+
   /// Get current audio track index
   int? getCurrentAudioTrackIndex() {
     return _audioTrackIndex;
@@ -582,7 +563,7 @@ class VideoPlayerService {
     } catch (e) {
       debugPrint('VideoPlayerService: Error getting subtitle tracks: $e');
     }
-    
+
     return ['None'];
   }
 
@@ -596,14 +577,16 @@ class VideoPlayerService {
           if (_betterPlayerController != null) {
             // better_player subtitle track selection
             // This would need to be implemented based on better_player API
-            debugPrint('VideoPlayerService: Setting subtitle track $trackIndex');
+            debugPrint(
+                'VideoPlayerService: Setting subtitle track $trackIndex');
           }
           break;
         case PlayerType.vlc:
           if (_vlcController != null) {
             // VLC subtitle track selection
             // This would need to be implemented based on VLC API
-            debugPrint('VideoPlayerService: Setting subtitle track $trackIndex');
+            debugPrint(
+                'VideoPlayerService: Setting subtitle track $trackIndex');
           }
           break;
         case PlayerType.videoPlayer:
@@ -642,7 +625,7 @@ class VideoPlayerService {
     } catch (e) {
       debugPrint('VideoPlayerService: Error getting video tracks: $e');
     }
-    
+
     return ['Default'];
   }
 
@@ -684,7 +667,7 @@ class VideoPlayerService {
       // Store delay value for potential future use
       // Actual implementation would require platform channels or player-specific APIs
       debugPrint('VideoPlayerService: Audio delay set to ${delayMs}ms');
-      
+
       // For VLC, audio delay can be set via options, but requires reinitialization
       // For better_player, audio delay may not be directly supported
       // This is a placeholder for future implementation
@@ -791,16 +774,15 @@ class VideoPlayerService {
     }
   }
 
-
   /// Dispose resources
   Future<void> dispose() async {
     if (_isDisposing) {
       debugPrint('VideoPlayerService: Already disposing, skipping');
       return;
     }
-    
+
     _isDisposing = true;
-    
+
     try {
       await WakelockPlus.disable();
 
@@ -810,45 +792,51 @@ class VideoPlayerService {
             try {
               // Remove event listener FIRST to prevent our callbacks during cleanup
               try {
-                _betterPlayerController!.removeEventsListener(_handleBetterPlayerEvent);
+                _betterPlayerController!
+                    .removeEventsListener(_handleBetterPlayerEvent);
               } catch (e) {
-                debugPrint('VideoPlayerService: Error removing event listener: $e');
+                debugPrint(
+                    'VideoPlayerService: Error removing event listener: $e');
               }
-              
+
               // NOTE: BetterPlayer's dispose() internally calls pause(), which triggers
-              // BetterPlayerSubtitlesDrawer to call setState(). This causes a "setState() 
+              // BetterPlayerSubtitlesDrawer to call setState(). This causes a "setState()
               // called when widget tree was locked" error, but it's harmless and doesn't
               // affect functionality. This is a known BetterPlayer issue that occurs
               // during widget tree disposal. The error is caught and logged but doesn't
               // crash the app.
-              
+
               // Dispose with timeout to prevent hanging
               await _betterPlayerController!.dispose().timeout(
                 const Duration(seconds: 2),
                 onTimeout: () {
-                  debugPrint('VideoPlayerService: BetterPlayer dispose timed out');
+                  debugPrint(
+                      'VideoPlayerService: BetterPlayer dispose timed out');
                 },
               ).catchError((e) {
                 // Ignore setState errors from BetterPlayer's subtitle drawer during disposal
                 // This is a known BetterPlayer issue and doesn't affect functionality
-                if (e.toString().contains('setState') || 
+                if (e.toString().contains('setState') ||
                     e.toString().contains('widget tree was locked') ||
                     e.toString().contains('BetterPlayerSubtitlesDrawer')) {
-                  debugPrint('VideoPlayerService: Ignoring BetterPlayer subtitle drawer setState error during disposal (known issue)');
+                  debugPrint(
+                      'VideoPlayerService: Ignoring BetterPlayer subtitle drawer setState error during disposal (known issue)');
                 } else {
-                  debugPrint('VideoPlayerService: Error during BetterPlayer dispose: $e');
+                  debugPrint(
+                      'VideoPlayerService: Error during BetterPlayer dispose: $e');
                 }
               });
-              
+
               // Small delay to let MediaCodec cleanup complete
               await Future.delayed(const Duration(milliseconds: 50));
             } catch (e) {
               // Catch any other errors during disposal
               // The setState error from subtitle drawer is expected and harmless
-              if (!e.toString().contains('setState') && 
+              if (!e.toString().contains('setState') &&
                   !e.toString().contains('widget tree was locked') &&
                   !e.toString().contains('BetterPlayerSubtitlesDrawer')) {
-                debugPrint('VideoPlayerService: Error disposing better_player: $e');
+                debugPrint(
+                    'VideoPlayerService: Error disposing better_player: $e');
               }
               // Continue with cleanup even if dispose fails
             } finally {

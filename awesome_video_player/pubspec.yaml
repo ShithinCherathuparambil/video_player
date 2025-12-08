@@ -23,7 +23,7 @@ dependencies:
   equatable: ^2.0.5
   cupertino_icons: ^1.0.2
   get_it: ^7.6.7
-  intl: ^0.19.0
+  intl: ^0.20.2
   device_info_plus: ^9.1.2
   photo_manager: ^3.7.1
   crypto: ^3.0.6
@@ -31,7 +31,7 @@ dependencies:
   file_picker: ^10.2.0
   
   # Universal video format support (VLC-like)
-  better_player: ^0.0.83
+  better_player_plus: ^1.0.8
   flutter_vlc_player: ^7.0.0
   wakelock_plus: ^1.2.1
   

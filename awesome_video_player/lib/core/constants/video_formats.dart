@@ -3,21 +3,48 @@ class VideoFormats {
   /// Common video file extensions
   static const List<String> extensions = [
     'mp4',
-    'mkv',
-    'avi',
-    'flv',
-    'ts',
-    'mov',
-    'webm',
     'm4v',
-    '3gp',
-    'wmv',
+    'm4p',
+    'mov',
+    'qt',
+    'mkv',
+    'webm',
+    'mxf',
     'mpg',
     'mpeg',
-    'rm',
-    'rmvb',
-    'vob',
+    'mpe',
+    'mpv',
+    'mp2',
+    'mpeg1',
+    'mpeg2',
+    'mpeg4',
+    'avi',
+    'wmv',
     'asf',
+    'flv',
+    'f4v',
+    'f4p',
+    'f4a',
+    'f4b',
+    'swf',
+    'rm',
+    '3gp',
+    '3g2',
+    'svi',
+    'amv',
+    'ogv',
+    'ogg',
+    'vob',
+    'ogm',
+    'mng',
+    'gifv',
+    'dv',
+    'yuv',
+    'roq',
+    'nsv',
+    'mod',
+    'ts',
+    'rmvb',
     'divx',
     'xvid',
   ];
@@ -25,7 +52,7 @@ class VideoFormats {
   /// Network streaming formats
   static const List<String> streamingFormats = [
     'm3u8', // HLS
-    'mpd',  // DASH
+    'mpd', // DASH
     'rtsp',
     'rtmp',
   ];
@@ -59,4 +86,3 @@ class VideoFormats {
     return formatMap[format.toLowerCase()] ?? format.toUpperCase();
   }
 }
-
