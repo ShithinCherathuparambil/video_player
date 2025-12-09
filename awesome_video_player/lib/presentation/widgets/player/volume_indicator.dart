@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 /// Volume indicator overlay
 class VolumeIndicator extends StatelessWidget {
@@ -29,10 +30,10 @@ class VolumeIndicator extends StatelessWidget {
           children: [
             Icon(
               volume == 0
-                  ? Icons.volume_off
+                  ? LucideIcons.volumeX
                   : volume < 0.5
-                      ? Icons.volume_down
-                      : Icons.volume_up,
+                      ? LucideIcons.volume1
+                      : LucideIcons.volume2,
               color: Colors.white,
               size: 32,
             ),
@@ -62,4 +63,3 @@ class VolumeIndicator extends StatelessWidget {
     );
   }
 }
-

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lumeo/presentation/widgets/advanced_features_panel.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class FloatingVideoControls extends StatefulWidget {
   final Duration position;
@@ -65,6 +66,8 @@ class FloatingVideoControls extends StatefulWidget {
   final ValueChanged<String> onVideoTrackChanged;
   final ValueChanged<bool> onBackgroundPlayEnabledChanged;
   final ValueChanged<String> onLoopModeChanged;
+  final VoidCallback onEnterPip;
+  final String title;
 
   const FloatingVideoControls({
     super.key,
@@ -77,6 +80,7 @@ class FloatingVideoControls extends StatefulWidget {
     required this.onOpenVideoEffects,
     required this.hasVideoEffects,
     required this.onOpenAdvancedFeatures,
+    required this.onEnterPip,
     this.onOpenFitModeSelector,
     required this.onSeekForward,
     required this.onSeekBackward,
@@ -131,6 +135,7 @@ class FloatingVideoControls extends StatefulWidget {
     required this.onVideoTrackChanged,
     required this.onBackgroundPlayEnabledChanged,
     required this.onLoopModeChanged,
+    required this.title,
   });
 
   @override
@@ -268,15 +273,15 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
         children: [
           // Left: Back & Title
           _buildGlassButton(
-            icon: Icons.arrow_back,
+            icon: LucideIcons.arrowLeft,
             onPressed: () => Navigator.of(context).pop(),
             backgroundColor: Colors.transparent, // Cleaner look
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: const Text(
-              'Video Title', // TODO: Pass title
-              style: TextStyle(
+            child: Text(
+              widget.title,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
@@ -285,60 +290,90 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
             ),
           ),
 
-          // Right: Settings & Tracks
-          // HW/SW Decoder Toggle (Placeholder logic for now, standard MX feature)
-          _buildGlassButton(
-            icon: widget.hardwareAcceleration ? Icons.memory : Icons.create,
-            onPressed: () {
-              // Toggle HW/SW
-              widget
-                  .onHardwareAccelerationChanged(!widget.hardwareAcceleration);
-            },
-            backgroundColor: Colors.transparent,
-          ),
-          const SizedBox(width: 8),
+// Right: Settings & Tracks
+          Flexible(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // HW/SW Decoder Toggle (Placeholder logic for now, standard MX feature)
+                  _buildGlassButton(
+                    icon: widget.hardwareAcceleration
+                        ? LucideIcons.cpu
+                        : LucideIcons.pencil,
+                    onPressed: () {
+                      // Toggle HW/SW
+                      widget.onHardwareAccelerationChanged(
+                          !widget.hardwareAcceleration);
+                    },
+                    backgroundColor: Colors.transparent,
+                  ),
+                  const SizedBox(width: 8),
 
-          // Audio Track
-          _buildGlassButton(
-            icon: Icons.audiotrack,
-            onPressed: () {
-              _showAudioTrackSelection();
-            },
-            backgroundColor: Colors.transparent,
-          ),
-          const SizedBox(width: 8),
+                  // Video Effects (Equalizer visual)
+                  if (widget.hasVideoEffects)
+                    _buildGlassButton(
+                      icon: LucideIcons.sliders,
+                      onPressed: widget.onOpenVideoEffects,
+                      backgroundColor: Colors.transparent,
+                    ),
+                  if (widget.hasVideoEffects) const SizedBox(width: 8),
+                  const SizedBox(width: 8),
 
-          // Subtitle Track
-          _buildGlassButton(
-            icon: Icons.subtitles,
-            onPressed: () {
-              _showSubtitleTrackSelection();
-            },
-            backgroundColor: Colors.transparent,
-          ),
-          const SizedBox(width: 8),
+                  // PiP Button
+                  _buildGlassButton(
+                    icon: LucideIcons.pictureInPicture,
+                    onPressed: widget.onEnterPip,
+                    backgroundColor: Colors.transparent,
+                  ),
+                  const SizedBox(width: 8),
 
-          // Bookmarks
-          _buildGlassButton(
-            icon: Icons.bookmark_border,
-            onPressed: widget.onBookmarksTap ?? () {},
-            backgroundColor: Colors.transparent,
-          ),
-          const SizedBox(width: 8),
+                  // Audio Track
+                  _buildGlassButton(
+                    icon: LucideIcons.music,
+                    onPressed: () {
+                      _showAudioTrackSelection();
+                    },
+                    backgroundColor: Colors.transparent,
+                  ),
+                  const SizedBox(width: 8),
 
-          // Settings (Kebab)
-          _buildGlassButton(
-            icon: Icons.more_vert,
-            onPressed: () {
-              // Show advanced menu or old quick menu
-              setState(() {
-                _showAdvancedMenu = !_showAdvancedMenu;
-              });
-              if (_showAdvancedMenu) {
-                _showAdvancedFeaturesPanel();
-              }
-            },
-            backgroundColor: Colors.transparent,
+                  // Subtitle Track
+                  _buildGlassButton(
+                    icon: LucideIcons.subtitles,
+                    onPressed: () {
+                      _showSubtitleTrackSelection();
+                    },
+                    backgroundColor: Colors.transparent,
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Bookmarks
+                  _buildGlassButton(
+                    icon: LucideIcons.bookmark,
+                    onPressed: widget.onBookmarksTap ?? () {},
+                    backgroundColor: Colors.transparent,
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Settings (Kebab)
+                  _buildGlassButton(
+                    icon: LucideIcons.moreVertical,
+                    onPressed: () {
+                      // Show advanced menu or old quick menu
+                      setState(() {
+                        _showAdvancedMenu = !_showAdvancedMenu;
+                      });
+                      if (_showAdvancedMenu) {
+                        _showAdvancedFeaturesPanel();
+                      }
+                    },
+                    backgroundColor: Colors.transparent,
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

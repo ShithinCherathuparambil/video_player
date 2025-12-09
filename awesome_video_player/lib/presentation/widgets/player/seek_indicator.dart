@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:lumeo/core/utils/video_utils.dart';
 
 /// Seek indicator overlay
@@ -33,7 +34,7 @@ class SeekIndicator extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isRewind ? Icons.replay_10 : Icons.forward_10,
+              isRewind ? LucideIcons.rotateCcw : LucideIcons.rotateCw,
               color: Colors.white,
               size: 32,
             ),
@@ -62,4 +63,3 @@ class SeekIndicator extends StatelessWidget {
     );
   }
 }
-

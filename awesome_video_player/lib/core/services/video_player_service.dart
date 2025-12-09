@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:better_player_plus/better_player_plus.dart';
 import 'package:flutter/material.dart';
@@ -55,6 +56,21 @@ class VideoPlayerService with WidgetsBindingObserver {
   DecoderType get currentDecoder => _currentDecoder;
   VideoFile? get currentVideo => _currentVideo;
   bool get isInitialized => _isInitialized;
+  bool get isControllerReady {
+    if (!_isInitialized || _isDisposing) return false;
+    switch (_currentPlayerType) {
+      case PlayerType.betterPlayer:
+        final bp = _betterPlayerController;
+        final vc = bp?.videoPlayerController;
+        if (bp == null || vc == null) return false;
+        return vc.value.initialized;
+      case PlayerType.vlc:
+        return _vlcController != null &&
+            _vlcController!.value.isInitialized == true;
+      case PlayerType.videoPlayer:
+        return false;
+    }
+  }
   bool get isPlaying => _isPlaying;
   Duration get position => _position;
   Duration get duration => _duration;
@@ -73,6 +89,9 @@ class VideoPlayerService with WidgetsBindingObserver {
     int? networkCacheSizeMs,
   }) async {
     try {
+      // Reset disposing flag before starting a fresh initialization
+      _isDisposing = false;
+      log('initializePlayer');
       _currentVideo = video;
       _subtitles = subtitles;
       _audioTrackIndex = audioTrackIndex;
@@ -98,14 +117,9 @@ class VideoPlayerService with WidgetsBindingObserver {
         debugPrint('VideoPlayerService: Original path: $videoPath');
         try {
           final cachedPath =
-              await VideoIntentService.copyContentUriToCache(videoPath).timeout(
-            const Duration(minutes: 5),
-            onTimeout: () {
-              debugPrint(
-                  'VideoPlayerService: Copy operation timed out after 5 minutes');
-              return null;
-            },
-          );
+              await VideoIntentService.copyContentUriToCache(videoPath);
+
+          // Removed timeout to prevent debug crashes - VideoIntentService handles errors internally
 
           if (cachedPath != null && cachedPath.isNotEmpty) {
             actualVideoPath = cachedPath;
@@ -132,14 +146,16 @@ class VideoPlayerService with WidgetsBindingObserver {
       // Detect format (for decoder selection & data source type)
       final formatResult = await _formatDetection.detectFormat(actualVideoPath);
 
-      // Always try BetterPlayer first (primary engine)
+      // Always try BetterPlayer first (primary engine). We no longer skip it
+      // when software decoding is requested because BetterPlayer/ExoPlayer can
+      // still succeed while VLC crashes on some devices.
       bool initialized = await _tryBetterPlayer(
           actualVideoPath, formatResult, networkCacheSizeMs);
 
-      // VLC is currently disabled (_tryVlcPlayer returns false)
+      // Try VLC only if BetterPlayer failed (VLC is unstable on some devices)
       if (!initialized) {
-        initialized =
-            await _tryVlcPlayer(videoPath, formatResult, networkCacheSizeMs);
+        initialized = await _tryVlcPlayer(
+            videoPath, formatResult, networkCacheSizeMs, preferredDecoder);
       }
 
       // Final fallback to video_player (basic support - currently stubbed)
@@ -149,7 +165,10 @@ class VideoPlayerService with WidgetsBindingObserver {
 
       if (initialized) {
         _isInitialized = true;
-        debugPrint('VideoPlayerService: Initialized with $_currentPlayerType');
+        // Ensure _currentDecoder is up to date with what was actually picked
+        // _try methods should set it, but we respect preference if valid
+        debugPrint(
+            'VideoPlayerService: Initialized with $_currentPlayerType ($preferredDecoder preferred)');
       } else {
         throw Exception('Failed to initialize video player');
       }
@@ -203,7 +222,7 @@ class VideoPlayerService with WidgetsBindingObserver {
           enableMute: false,
           enablePlayPause: false,
           enableQualities: false,
-          enablePip: false,
+          enablePip: true, // Enable PiP support
           enableOverflowMenu: false,
         ),
         deviceOrientationsAfterFullScreen: const [DeviceOrientation.portraitUp],
@@ -219,25 +238,55 @@ class VideoPlayerService with WidgetsBindingObserver {
       );
 
       _currentPlayerType = PlayerType.betterPlayer;
-      _currentDecoder = formatResult.supportsHardwareDecoding
-          ? DecoderType.hardware
-          : DecoderType.software;
+      // BetterPlayer uses HW by default. We assume it's HW unless format forbids it,
+      // but if we are here, it means we allowed BetterPlayer (so likely HW or Auto).
+      _currentDecoder = DecoderType.hardware;
 
       // Initialize duration if available and listen for ready state
-      _betterPlayerController!.videoPlayerController?.addListener(() {
-        final vc = _betterPlayerController!.videoPlayerController;
-        if (vc != null && vc.value.initialized) {
-          _duration = vc.value.duration ?? Duration.zero;
+      final vpc = _betterPlayerController!.videoPlayerController;
+      if (vpc != null) {
+        // Create completer to wait for initialization
+        final Completer<void> initCompleter = Completer<void>();
 
-          // Update playing state from controller to keep it in sync
-          // Only update if there's a real change to avoid unnecessary state updates
-          final isCurrentlyPlaying = vc.value.isPlaying;
-          if (isCurrentlyPlaying != _isPlaying) {
-            _isPlaying = isCurrentlyPlaying;
-            _playingController?.add(_isPlaying);
+        void listener() {
+          final vc = _betterPlayerController?.videoPlayerController;
+          if (vc != null && vc.value.initialized) {
+            // Complete initialization wait if not already completed
+            if (!initCompleter.isCompleted) {
+              initCompleter.complete();
+            }
+
+            _duration = vc.value.duration ?? Duration.zero;
+
+            // Update playing state from controller to keep it in sync
+            // Only update if there's a real change to avoid unnecessary state updates
+            final isCurrentlyPlaying = vc.value.isPlaying;
+            if (isCurrentlyPlaying != _isPlaying) {
+              _isPlaying = isCurrentlyPlaying;
+              _playingController?.add(_isPlaying);
+            }
           }
         }
-      });
+
+        vpc.addListener(listener);
+        listener(); // Check immediately to avoid race condition
+
+        // Wait for initialization with timeout
+        // This ensures the player is actually ready for seekTo/play calls
+        try {
+          await initCompleter.future.timeout(const Duration(seconds: 5));
+          // Settle time for texture registration
+          await Future.delayed(const Duration(milliseconds: 200));
+        } catch (e) {
+          debugPrint(
+              'VideoPlayerService: Timeout waiting for player initialization - falling back');
+          try {
+            _betterPlayerController?.dispose();
+          } catch (_) {}
+          _betterPlayerController = null;
+          return false;
+        }
+      }
 
       // Event listener is already set in config, no need to add again
       debugPrint('VideoPlayerService: better_player initialized');
@@ -278,14 +327,16 @@ class VideoPlayerService with WidgetsBindingObserver {
   }
 
   /// Try initializing with VLC player
-  Future<bool> _tryVlcPlayer(String videoPath,
-      FormatDetectionResult formatResult, int? networkCacheSizeMs) async {
-    // Temporary: disable VLC on this build to avoid platform channel crashes.
-    // The flutter_vlc_player plugin is throwing:
-    // PlatformException(channel-error, Unable to establish connection on channel...)
-    // We fall back to BetterPlayer / video_player instead.
+  Future<bool> _tryVlcPlayer(
+      String videoPath,
+      FormatDetectionResult formatResult,
+      int? networkCacheSizeMs,
+      DecoderType? preferredDecoder) async {
+    // VLC has been a frequent source of platform channel crashes on some
+    // devices. We disable it and rely on BetterPlayer + future video_player
+    // fallback instead.
     debugPrint(
-        'VideoPlayerService: VLC disabled, skipping VLC initialization.');
+        'VideoPlayerService: VLC path skipped (disabled due to stability issues)');
     return false;
   }
 
@@ -310,9 +361,18 @@ class VideoPlayerService with WidgetsBindingObserver {
   }
 
   Future<void> play() async {
-    if (!_isInitialized) return;
+    if (!_isInitialized || _isDisposing) return;
     try {
+      if (!isControllerReady) {
+        debugPrint('VideoPlayerService: Controller not ready, play skipped');
+        return;
+      }
       if (_currentPlayerType == PlayerType.betterPlayer) {
+        final vc = _betterPlayerController?.videoPlayerController;
+        if (vc == null || !vc.value.initialized) {
+          debugPrint('VideoPlayerService: VideoPlayerController not ready');
+          return;
+        }
         await _betterPlayerController?.play();
       } else if (_currentPlayerType == PlayerType.vlc) {
         await _vlcController?.play();
@@ -419,10 +479,17 @@ class VideoPlayerService with WidgetsBindingObserver {
   Future<void> switchDecoder(
       [DecoderType? decoderType, int? networkCacheSizeMs]) async {
     if (_currentVideo == null || !_isInitialized) return;
-
+    log('switchDecoder - $switchDecoder');
     try {
-      // Dispose current player
+      // Capture current video and state before dispose clears it
+      final video = _currentVideo!;
+      final wasPlaying = _isPlaying;
+      final resumePosition = _position;
+
+      // Dispose current player and wait for cleanup
       await dispose();
+      await Future.delayed(
+          const Duration(milliseconds: 300)); // Allow surface cleanup
 
       // Determine new decoder type
       if (decoderType != null) {
@@ -437,21 +504,37 @@ class VideoPlayerService with WidgetsBindingObserver {
       // Use provided network cache size, saved preference, or detect from format
       int? networkCacheSize = networkCacheSizeMs ?? _networkCacheSizeMs;
       if (networkCacheSize == null) {
-        final formatResult =
-            await _formatDetection.detectFormat(_currentVideo!.path);
+        final formatResult = await _formatDetection.detectFormat(video.path);
         networkCacheSize =
             formatResult.isNetworkStream ? 1000 : null; // Default cache size
       }
 
       await initializePlayer(
-        videoPath: _currentVideo!.path,
-        video: _currentVideo!,
+        videoPath: video.path,
+        video: video,
         preferredDecoder: _currentDecoder,
         subtitles: _subtitles,
         audioTrackIndex: _audioTrackIndex,
         playbackSpeed: _playbackSpeed,
         networkCacheSizeMs: networkCacheSize,
       );
+
+      // Restore state with robust error handling
+      if (resumePosition > Duration.zero) {
+        try {
+          await seekTo(resumePosition);
+        } catch (e) {
+          debugPrint('VideoPlayerService: seekTo after switch failed: $e');
+        }
+      }
+
+      if (wasPlaying) {
+        try {
+          await play();
+        } catch (e) {
+          debugPrint('VideoPlayerService: play after switch failed: $e');
+        }
+      }
     } catch (e) {
       debugPrint('VideoPlayerService: Error switching decoder: $e');
       rethrow;
@@ -748,6 +831,30 @@ class VideoPlayerService with WidgetsBindingObserver {
     }
   }
 
+  /// Enter Picture-in-Picture mode
+  Future<void> enterPip() async {
+    if (!_isInitialized) return;
+
+    try {
+      if (_currentPlayerType == PlayerType.betterPlayer) {
+        final key = GlobalKey();
+        await _betterPlayerController?.enablePictureInPicture(key);
+      }
+      // VLC PiP support might be limited or require platform channels
+    } catch (e) {
+      debugPrint('VideoPlayerService: Error entering PiP: $e');
+    }
+  }
+
+  /// Check if PiP is supported
+  Future<bool> isPipSupported() async {
+    if (_currentPlayerType == PlayerType.betterPlayer) {
+      return await _betterPlayerController?.isPictureInPictureSupported() ??
+          false;
+    }
+    return false;
+  }
+
   // Background Play Configuration
   bool _backgroundPlayEnabled = false;
 
@@ -852,25 +959,21 @@ class VideoPlayerService with WidgetsBindingObserver {
               // crash the app.
 
               // Dispose with timeout to prevent hanging
-              await _betterPlayerController!.dispose().timeout(
-                const Duration(seconds: 2),
-                onTimeout: () {
-                  debugPrint(
-                      'VideoPlayerService: BetterPlayer dispose timed out');
-                },
-              ).catchError((e) {
+              // Dispose without timeout to prevent "method 'timeout' was called on null"
+              // The dispose method might not return a Future in all internal paths or is misbehaving
+              try {
+                _betterPlayerController!.dispose();
+              } catch (e) {
                 // Ignore setState errors from BetterPlayer's subtitle drawer during disposal
-                // This is a known BetterPlayer issue and doesn't affect functionality
                 if (e.toString().contains('setState') ||
                     e.toString().contains('widget tree was locked') ||
                     e.toString().contains('BetterPlayerSubtitlesDrawer')) {
-                  debugPrint(
-                      'VideoPlayerService: Ignoring BetterPlayer subtitle drawer setState error during disposal (known issue)');
+                  // Keep silent on known harmless errors
                 } else {
                   debugPrint(
                       'VideoPlayerService: Error during BetterPlayer dispose: $e');
                 }
-              });
+              }
 
               // Small delay to let MediaCodec cleanup complete
               await Future.delayed(const Duration(milliseconds: 50));
@@ -919,5 +1022,7 @@ class VideoPlayerService with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('VideoPlayerService: Error disposing: $e');
     }
+    // Allow future initializations
+    _isDisposing = false;
   }
 }

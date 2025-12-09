@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:lumeo/core/utils/micro_interactions.dart';
 import 'package:lumeo/presentation/widgets/glassmorphism/glass_container.dart';
 
@@ -25,23 +26,25 @@ class VideoFitModeSelector extends StatelessWidget {
   };
 
   static const Map<BoxFit, IconData> _fitModeIcons = {
-    BoxFit.contain: Icons.fit_screen,
-    BoxFit.cover: Icons.crop_free,
-    BoxFit.fill: Icons.aspect_ratio,
-    BoxFit.fitWidth: Icons.fit_screen_outlined,
-    BoxFit.fitHeight: Icons.fit_screen_outlined,
-    BoxFit.none: Icons.crop_original,
-    BoxFit.scaleDown: Icons.zoom_out,
+    BoxFit.contain: LucideIcons.minimize,
+    BoxFit.cover: LucideIcons.crop,
+    BoxFit.fill: LucideIcons.maximize,
+    BoxFit.fitWidth: LucideIcons.moveHorizontal,
+    BoxFit.fitHeight: LucideIcons.moveVertical,
+    BoxFit.none: LucideIcons.image,
+    BoxFit.scaleDown: LucideIcons.zoomOut,
   };
 
   static const Map<BoxFit, String> _fitModeDescriptions = {
-    BoxFit.contain: 'Fits video to screen while preserving aspect ratio (recommended)',
+    BoxFit.contain:
+        'Fits video to screen while preserving aspect ratio (recommended)',
     BoxFit.cover: 'Fills screen, may crop video edges',
     BoxFit.fill: 'Stretches video to fill screen (may distort)',
     BoxFit.fitWidth: 'Fits video width to screen width',
     BoxFit.fitHeight: 'Fits video height to screen height',
     BoxFit.none: 'Shows video at original size',
-    BoxFit.scaleDown: 'Scales down if larger than screen, otherwise original size',
+    BoxFit.scaleDown:
+        'Scales down if larger than screen, otherwise original size',
   };
 
   @override
@@ -76,7 +79,7 @@ class VideoFitModeSelector extends StatelessWidget {
                     ),
               ),
               IconButton(
-                icon: const Icon(Icons.close),
+                icon: const Icon(LucideIcons.x),
                 onPressed: () => Navigator.of(context).pop(),
                 color: Theme.of(context).colorScheme.onSurface,
               ),
@@ -90,7 +93,8 @@ class VideoFitModeSelector extends StatelessWidget {
               child: InkWell(
                 onTap: () {
                   onFitModeChanged(fitMode);
-                  MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
+                  MicroInteractions.hapticFeedback(
+                      type: HapticFeedbackType.lightImpact);
                   Navigator.of(context).pop();
                 },
                 borderRadius: BorderRadius.circular(12),
@@ -114,7 +118,10 @@ class VideoFitModeSelector extends StatelessWidget {
                         _fitModeIcons[fitMode],
                         color: isSelected
                             ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                            : Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.7),
                         size: 24,
                       ),
                       const SizedBox(width: 16),
@@ -126,7 +133,9 @@ class VideoFitModeSelector extends StatelessWidget {
                               _fitModeLabels[fitMode] ?? fitMode.toString(),
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                                 color: isSelected
                                     ? Theme.of(context).colorScheme.primary
                                     : Theme.of(context).colorScheme.onSurface,
@@ -137,7 +146,10 @@ class VideoFitModeSelector extends StatelessWidget {
                               _fitModeDescriptions[fitMode] ?? '',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.6),
                               ),
                             ),
                           ],
@@ -145,7 +157,7 @@ class VideoFitModeSelector extends StatelessWidget {
                       ),
                       if (isSelected)
                         Icon(
-                          Icons.check_circle,
+                          LucideIcons.checkCircle,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                     ],
@@ -159,4 +171,3 @@ class VideoFitModeSelector extends StatelessWidget {
     );
   }
 }
-

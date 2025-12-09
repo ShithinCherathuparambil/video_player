@@ -227,84 +227,91 @@ class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final maxHeight = MediaQuery.of(context).size.height * 0.85;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Video Effects',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Video Effects',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
+
+              const SizedBox(height: 16),
+
+              // Filter presets
+              _buildFilterPresets(),
+
+              const SizedBox(height: 20),
+
+              // Color adjustments
+              _buildColorAdjustments(),
+
+              const SizedBox(height: 20),
+
+              // VLC-style video filters
+              _buildVLCFilters(),
+
+              const SizedBox(height: 16),
+
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _resetToDefault,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.1),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Reset'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _saveCurrentAsPreset,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Save Preset'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-
-          const SizedBox(height: 16),
-
-          // Filter presets
-          _buildFilterPresets(),
-
-          const SizedBox(height: 20),
-
-          // Color adjustments
-          _buildColorAdjustments(),
-
-          const SizedBox(height: 20),
-
-          // VLC-style video filters
-          _buildVLCFilters(),
-
-          const SizedBox(height: 16),
-
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _resetToDefault,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.1),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Reset'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _saveCurrentAsPreset,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Save Preset'),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -534,13 +541,13 @@ class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
               color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
-        
+
         // Rotation
         if (widget.onRotationChanged != null) ...[
           _buildRotationSelector(),
           const SizedBox(height: 12),
         ],
-        
+
         // Deinterlace
         if (widget.onDeinterlaceChanged != null) ...[
           Row(
@@ -571,7 +578,7 @@ class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
   Widget _buildRotationSelector() {
     final rotations = [0.0, 90.0, 180.0, 270.0];
     final rotationLabels = ['0°', '90°', '180°', '270°'];
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -597,7 +604,7 @@ class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
             final index = entry.key;
             final rotation = entry.value;
             final isSelected = (widget.rotation - rotation).abs() < 0.1;
-            
+
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -623,7 +630,8 @@ class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
                         style: TextStyle(
                           color: isSelected ? Colors.white : Colors.white70,
                           fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -636,5 +644,4 @@ class _VideoEffectsPanelState extends State<VideoEffectsPanel> {
       ],
     );
   }
-
 }

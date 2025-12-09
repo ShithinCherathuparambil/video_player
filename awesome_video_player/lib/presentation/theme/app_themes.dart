@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppThemes {
   // Black & Silver palette
   static const Color primaryColor = Color(0xFFC0C0C0); // Silver
-  static const Color secondaryColor = Color(0xFFFFD700); // Gold
+  static const Color secondaryColor = Color(0xFFC0C0C0); // Silver (was Gold)
   static const Color accentColor = Color(0xFFE0E0E0); // Light silver
   static const Color backgroundColor = Color(0xFF000000); // Pure black
   // static const Color _surfaceColor = Color(0xFF121212); // Near-black surface
@@ -78,7 +78,7 @@ class AppThemes {
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     ),
     iconTheme: const IconThemeData(
-      color: secondaryColor, // gold icons
+      color: secondaryColor, // silver icons
     ),
     textTheme: const TextTheme(
       titleLarge: TextStyle(
@@ -102,7 +102,7 @@ class AppThemes {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: secondaryColor, // gold
+        backgroundColor: secondaryColor, // silver
         foregroundColor: Colors.black,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -111,7 +111,7 @@ class AppThemes {
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        foregroundColor: secondaryColor, // gold text
+        foregroundColor: secondaryColor, // silver text
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -125,7 +125,8 @@ class AppThemes {
     ),
     switchTheme: const SwitchThemeData(
       thumbColor: WidgetStatePropertyAll(secondaryColor),
-      trackColor: WidgetStatePropertyAll(Color(0x66FFD700)), // translucent gold
+      trackColor:
+          WidgetStatePropertyAll(Color(0x66C0C0C0)), // translucent silver
     ),
     checkboxTheme: const CheckboxThemeData(
       fillColor: WidgetStatePropertyAll(secondaryColor),
@@ -139,7 +140,7 @@ class AppThemes {
       activeTrackColor: secondaryColor,
       inactiveTrackColor: Colors.white24,
       thumbColor: secondaryColor,
-      overlayColor: Color(0x33FFD700),
+      overlayColor: Color(0x33C0C0C0),
     ),
     inputDecorationTheme: const InputDecorationTheme(
       enabledBorder: OutlineInputBorder(
@@ -233,7 +234,7 @@ class AppThemes {
     ),
     switchTheme: const SwitchThemeData(
       thumbColor: WidgetStatePropertyAll(secondaryColor),
-      trackColor: WidgetStatePropertyAll(Color(0x66FFD700)),
+      trackColor: WidgetStatePropertyAll(Color(0x66C0C0C0)),
     ),
     checkboxTheme: const CheckboxThemeData(
       fillColor: WidgetStatePropertyAll(secondaryColor),
@@ -247,7 +248,7 @@ class AppThemes {
       activeTrackColor: secondaryColor,
       inactiveTrackColor: Colors.white24,
       thumbColor: secondaryColor,
-      overlayColor: Color(0x33FFD700),
+      overlayColor: Color(0x33C0C0C0),
     ),
     inputDecorationTheme: const InputDecorationTheme(
       enabledBorder: OutlineInputBorder(

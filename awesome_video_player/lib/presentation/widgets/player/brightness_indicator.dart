@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 /// Brightness indicator overlay
 class BrightnessIndicator extends StatelessWidget {
@@ -29,10 +30,10 @@ class BrightnessIndicator extends StatelessWidget {
           children: [
             Icon(
               brightness < 0.3
-                  ? Icons.brightness_low
+                  ? LucideIcons.sunDim
                   : brightness < 0.7
-                      ? Icons.brightness_medium
-                      : Icons.brightness_high,
+                      ? LucideIcons.sun
+                      : LucideIcons.sun,
               color: Colors.white,
               size: 32,
             ),
@@ -62,4 +63,3 @@ class BrightnessIndicator extends StatelessWidget {
     );
   }
 }
-

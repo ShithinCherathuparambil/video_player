@@ -22,6 +22,7 @@ class AdvancedFeaturesService {
     required bool rememberPosition,
     required bool autoPlayNext,
     required bool shuffleEnabled,
+    int? autoHideControlsDelay,
     String? selectedQuality,
     String? selectedAudioTrack,
     String? selectedSubtitleTrack,
@@ -44,10 +45,14 @@ class AdvancedFeaturesService {
         'rememberPosition': rememberPosition,
         'autoPlayNext': autoPlayNext,
         'shuffleEnabled': shuffleEnabled,
+        'autoHideControlsDelay': autoHideControlsDelay ?? 2000,
         if (selectedQuality != null) 'selectedQuality': selectedQuality,
-        if (selectedAudioTrack != null) 'selectedAudioTrack': selectedAudioTrack,
-        if (selectedSubtitleTrack != null) 'selectedSubtitleTrack': selectedSubtitleTrack,
-        if (selectedVideoTrack != null) 'selectedVideoTrack': selectedVideoTrack,
+        if (selectedAudioTrack != null)
+          'selectedAudioTrack': selectedAudioTrack,
+        if (selectedSubtitleTrack != null)
+          'selectedSubtitleTrack': selectedSubtitleTrack,
+        if (selectedVideoTrack != null)
+          'selectedVideoTrack': selectedVideoTrack,
       };
       await prefs.setString(_prefsKey, jsonEncode(preferences));
     } catch (e) {
@@ -66,7 +71,7 @@ class AdvancedFeaturesService {
     } catch (e) {
       debugPrint('Error loading advanced features preferences: $e');
     }
-    
+
     // Return defaults
     return {
       'hardwareAcceleration': true,
@@ -83,6 +88,7 @@ class AdvancedFeaturesService {
       'rememberPosition': true,
       'autoPlayNext': true,
       'shuffleEnabled': false,
+      'autoHideControlsDelay': 2000,
       'selectedQuality': 'Auto',
       'selectedAudioTrack': 'Default',
       'selectedSubtitleTrack': 'None',
@@ -101,7 +107,7 @@ class AdvancedFeaturesService {
   /// Apply network caching settings
   /// Note: This would need to be applied when initializing the video player
   Future<void> applyNetworkCaching(bool enabled, int cacheSizeMs) async {
-    debugPrint('Network caching: ${enabled ? "enabled" : "disabled"}, size: ${cacheSizeMs}ms');
+    debugPrint(
+        'Network caching: ${enabled ? "enabled" : "disabled"}, size: ${cacheSizeMs}ms');
   }
 }
-

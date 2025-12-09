@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:lumeo/core/services/video_player_service.dart' as vps;
 import 'package:lumeo/core/services/format_detection_service.dart';
 import 'package:lumeo/presentation/widgets/glassmorphism/glass_container.dart';
@@ -36,22 +37,21 @@ class _DecoderSelectorState extends State<DecoderSelector> {
   void _loadDecoderInfo() {
     final decoder = widget.playerService.currentDecoder;
     final playerType = widget.playerService.currentPlayerType;
-    
+
     setState(() {
       _decoderInfo = _getDecoderInfo(decoder, playerType);
     });
   }
 
   String _getDecoderInfo(vps.DecoderType decoder, vps.PlayerType playerType) {
-    final decoderName = decoder == vps.DecoderType.hardware
-        ? 'Hardware'
-        : 'Software';
+    final decoderName =
+        decoder == vps.DecoderType.hardware ? 'Hardware' : 'Software';
     final playerName = playerType == vps.PlayerType.betterPlayer
         ? 'Better Player'
         : playerType == vps.PlayerType.vlc
             ? 'VLC Player'
             : 'Video Player';
-    
+
     return '$decoderName ($playerName)';
   }
 
@@ -68,9 +68,9 @@ class _DecoderSelectorState extends State<DecoderSelector> {
       );
 
       await widget.playerService.switchDecoder();
-      
+
       _loadDecoderInfo();
-      
+
       if (widget.onDecoderChanged != null) {
         widget.onDecoderChanged!(widget.playerService.currentDecoder);
       }
@@ -108,7 +108,8 @@ class _DecoderSelectorState extends State<DecoderSelector> {
   @override
   Widget build(BuildContext context) {
     final currentDecoder = widget.playerService.currentDecoder;
-    final supportsHardware = widget.formatResult?.supportsHardwareDecoding ?? true;
+    final supportsHardware =
+        widget.formatResult?.supportsHardwareDecoding ?? true;
 
     return GlassContainer(
       blur: 20.0,
@@ -125,7 +126,7 @@ class _DecoderSelectorState extends State<DecoderSelector> {
               Row(
                 children: [
                   Icon(
-                    Icons.settings_applications,
+                    LucideIcons.settings,
                     color: Theme.of(context).colorScheme.primary,
                     size: 24,
                   ),
@@ -154,7 +155,7 @@ class _DecoderSelectorState extends State<DecoderSelector> {
             context,
             'Current Decoder',
             _decoderInfo ?? 'Unknown',
-            icon: Icons.info_outline,
+            icon: LucideIcons.info,
           ),
           const SizedBox(height: 16),
 
@@ -164,7 +165,7 @@ class _DecoderSelectorState extends State<DecoderSelector> {
               context,
               'Format',
               widget.formatResult!.format.toUpperCase(),
-              icon: Icons.video_file,
+              icon: LucideIcons.fileVideo,
             ),
           if (widget.formatResult != null) const SizedBox(height: 16),
 
@@ -173,7 +174,9 @@ class _DecoderSelectorState extends State<DecoderSelector> {
             context,
             'Hardware Decoding',
             supportsHardware ? 'Supported' : 'Not Supported',
-            icon: supportsHardware ? Icons.check_circle : Icons.cancel,
+            icon: supportsHardware
+                ? LucideIcons.checkCircle
+                : LucideIcons.xCircle,
             color: supportsHardware ? Colors.green : Colors.orange,
           ),
           const SizedBox(height: 20),
@@ -207,7 +210,8 @@ class _DecoderSelectorState extends State<DecoderSelector> {
                           ? 'Hardware (GPU accelerated)'
                           : 'Software (CPU based)',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                     ),
                   ],
@@ -216,7 +220,8 @@ class _DecoderSelectorState extends State<DecoderSelector> {
                   value: currentDecoder == vps.DecoderType.hardware,
                   onChanged: supportsHardware && !_isSwitching
                       ? (value) {
-                          if (value != (currentDecoder == vps.DecoderType.hardware)) {
+                          if (value !=
+                              (currentDecoder == vps.DecoderType.hardware)) {
                             _switchDecoder();
                           }
                         }
@@ -237,7 +242,7 @@ class _DecoderSelectorState extends State<DecoderSelector> {
               child: Row(
                 children: [
                   Icon(
-                    Icons.warning_amber_rounded,
+                    LucideIcons.alertTriangle,
                     color: Colors.orange,
                     size: 20,
                   ),
@@ -306,7 +311,7 @@ class _DecoderSelectorState extends State<DecoderSelector> {
                   ),
             ),
             leading: Icon(
-              Icons.help_outline,
+              LucideIcons.helpCircle,
               color: Theme.of(context).colorScheme.primary,
             ),
             children: [
@@ -413,4 +418,3 @@ class _DecoderSelectorState extends State<DecoderSelector> {
     );
   }
 }
-

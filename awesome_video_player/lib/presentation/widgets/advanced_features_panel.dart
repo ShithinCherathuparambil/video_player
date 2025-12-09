@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class AdvancedFeaturesPanel extends StatefulWidget {
   final bool hardwareAcceleration;
@@ -144,7 +145,7 @@ class _AdvancedFeaturesPanelState extends State<AdvancedFeaturesPanel> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
+                icon: const Icon(LucideIcons.x, color: Colors.white),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ],

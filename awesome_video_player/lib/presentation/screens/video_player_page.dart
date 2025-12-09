@@ -1,8 +1,13 @@
 import 'dart:async'; // Added for Timer and StreamSubscription
+import 'dart:developer';
 import 'dart:ui'; // For ImageFilter
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lumeo/presentation/widgets/dialogs/sleep_timer_dialog.dart';
+import 'package:lumeo/presentation/widgets/dialogs/subtitle_style_dialog.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:better_player_plus/better_player_plus.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
@@ -125,6 +130,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
   bool _audioSync = true;
   double _audioDelay = 0.0;
   double _subtitleDelay = 0.0;
+  int _autoHideControlsDelay = 2000; // ms, default 2 seconds
 
   // Audio equalizer
   List<double> _equalizerGains = List.filled(10, 0.0);
@@ -166,6 +172,10 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
   bool _isLocked = false;
   double _videoScale = 1.0;
 
+  // Sleep Timer
+  Timer? _sleepTimer;
+  DateTime? _sleepTime;
+
   // Gesture State
   bool _isDragging = false;
   String? _dragType; // 'Volume', 'Brightness', 'Seek'
@@ -183,6 +193,56 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
 
     // Load preferences BEFORE initializing player
     _loadPreferencesAndInitialize();
+  }
+
+  void _resetSubscriptions() {
+    _positionSubscription?.cancel();
+    _playingSubscription?.cancel();
+    _positionSubscription = null;
+    _playingSubscription = null;
+  }
+
+  void _attachServiceListeners() {
+    if (_playerService == null) return;
+
+    // Cancel previous subscriptions before attaching new ones
+    _resetSubscriptions();
+
+    _positionSubscription = _playerService!.positionStream?.listen((position) {
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+          if (_subtitlesEnabled) {
+            _currentSubtitle = _subtitleService.getSubtitleAt(position);
+          } else {
+            _currentSubtitle = null;
+          }
+        });
+        _saveLastPosition();
+
+        if (_autoPlayNext && _totalDuration > Duration.zero) {
+          final progress =
+              position.inMilliseconds / _totalDuration.inMilliseconds;
+          if (progress >= 0.99) {
+            _handleAutoPlayNext();
+          }
+        }
+      }
+    });
+
+    _playingSubscription = _playerService!.playingStream?.listen((playing) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = playing;
+          if (playing) {
+            _resetControlsHideTimer();
+          } else {
+            _showControls = true;
+            _controlsHideTimer?.cancel();
+          }
+        });
+      }
+    });
   }
 
   Future<void> _loadPreferencesAndInitialize() async {
@@ -277,11 +337,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
         _rememberPosition = prefs['rememberPosition'] ?? true;
         _autoPlayNext = prefs['autoPlayNext'] ?? true;
         _shuffleEnabled = prefs['shuffleEnabled'] ?? false;
+        _autoHideControlsDelay = prefs['autoHideControlsDelay'] ?? 2000;
 
         // Also load quality and track selections
         _selectedQuality = prefs['selectedQuality'] ?? 'Auto';
         _selectedAudioTrack = prefs['selectedAudioTrack'] ?? 'Default';
-        _selectedSubtitleTrack = prefs['selectedSubtitleTrack'] ?? 'None';
+
         _selectedSubtitleTrack = prefs['selectedSubtitleTrack'] ?? 'None';
         _selectedVideoTrack = prefs['selectedVideoTrack'] ?? 'Default';
         _backgroundPlayEnabled = prefs['backgroundPlayEnabled'] ?? false;
@@ -316,6 +377,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
       rememberPosition: _rememberPosition,
       autoPlayNext: _autoPlayNext,
       shuffleEnabled: _shuffleEnabled,
+      autoHideControlsDelay: _autoHideControlsDelay,
       selectedQuality: _selectedQuality,
       selectedAudioTrack: _selectedAudioTrack,
       selectedSubtitleTrack: _selectedSubtitleTrack,
@@ -370,51 +432,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
         networkCacheSizeMs: _networkCaching ? _networkCacheSize : null,
       );
 
-      // Load tracks
+      // Load tracks & subtitles
       await _loadTracks();
-
-      // Load subtitles
       await _loadSubtitles();
 
       // Subscribe to position and playing state streams
-      _positionSubscription =
-          _playerService!.positionStream?.listen((position) {
-        if (mounted) {
-          setState(() {
-            _currentPosition = position;
-            // Update current subtitle based on position
-            if (_subtitlesEnabled) {
-              _currentSubtitle = _subtitleService.getSubtitleAt(position);
-            } else {
-              _currentSubtitle = null;
-            }
-          });
-          _saveLastPosition();
-
-          // Check for auto-play next when video ends
-          if (_autoPlayNext && _totalDuration > Duration.zero) {
-            final progress =
-                position.inMilliseconds / _totalDuration.inMilliseconds;
-            if (progress >= 0.99) {
-              _handleAutoPlayNext();
-            }
-          }
-        }
-      });
-
-      _playingSubscription = _playerService!.playingStream?.listen((playing) {
-        if (mounted) {
-          setState(() {
-            _isPlaying = playing;
-            // Don't auto-hide controls when video starts playing
-            // Controls will only hide when user taps the screen
-            // Keep controls visible when paused
-            if (!playing) {
-              _showControls = true;
-            }
-          });
-        }
-      });
+      _attachServiceListeners();
 
       // For VLC player, wait for initialization to complete
       if (_playerService!.currentPlayerType == vps.PlayerType.vlc) {
@@ -659,10 +682,11 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
       _showControls = !_showControls;
     });
 
-    // Auto-hide controls after 5 seconds of inactivity (MX Player style)
+    // Auto-hide controls after configured delay
     if (_showControls) {
       _controlsHideTimer?.cancel();
-      _controlsHideTimer = Timer(const Duration(seconds: 5), () {
+      _controlsHideTimer =
+          Timer(Duration(milliseconds: _autoHideControlsDelay), () {
         if (mounted && _isPlaying) {
           setState(() {
             _showControls = false;
@@ -677,7 +701,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
   void _resetControlsHideTimer() {
     _controlsHideTimer?.cancel();
     if (_showControls && _isPlaying) {
-      _controlsHideTimer = Timer(const Duration(seconds: 5), () {
+      _controlsHideTimer =
+          Timer(Duration(milliseconds: _autoHideControlsDelay), () {
         if (mounted && _isPlaying) {
           setState(() {
             _showControls = false;
@@ -781,40 +806,71 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
           rotation: _rotation,
           deinterlace: _deinterlace,
           onBrightnessChanged: (value) {
+            final wasPlaying = _playerService?.isPlaying ?? false;
             setState(() => _brightness = value);
             setModalState(() {}); // Rebuild the modal
+            _ensurePlaybackIfNeeded(wasPlaying);
+            log('onContrastChanged: $value');
           },
           onContrastChanged: (value) {
+            final wasPlaying = _playerService?.isPlaying ?? false;
             setState(() => _contrast = value);
             setModalState(() {}); // Rebuild the modal
+            _ensurePlaybackIfNeeded(wasPlaying);
+            log('onContrastChanged: $value');
           },
           onSaturationChanged: (value) {
+            final wasPlaying = _playerService?.isPlaying ?? false;
             setState(() => _saturation = value);
             setModalState(() {}); // Rebuild the modal
+            _ensurePlaybackIfNeeded(wasPlaying);
           },
           onHueChanged: (value) {
+            final wasPlaying = _playerService?.isPlaying ?? false;
             setState(() => _hue = value);
             setModalState(() {}); // Rebuild the modal
+            _ensurePlaybackIfNeeded(wasPlaying);
           },
           onGammaChanged: (value) {
+            final wasPlaying = _playerService?.isPlaying ?? false;
             setState(() => _gamma = value);
             setModalState(() {}); // Rebuild the modal
+            _ensurePlaybackIfNeeded(wasPlaying);
           },
           onFilterChanged: (filter) {
+            final wasPlaying = _playerService?.isPlaying ?? false;
             setState(() => _selectedFilter = filter);
             setModalState(() {}); // Rebuild the modal
+            _ensurePlaybackIfNeeded(wasPlaying);
           },
           onRotationChanged: (value) {
+            final wasPlaying = _playerService?.isPlaying ?? false;
             setState(() => _rotation = value);
             setModalState(() {}); // Rebuild the modal
+            _ensurePlaybackIfNeeded(wasPlaying);
           },
           onDeinterlaceChanged: (value) {
+            final wasPlaying = _playerService?.isPlaying ?? false;
             setState(() => _deinterlace = value);
             setModalState(() {}); // Rebuild the modal
+            _ensurePlaybackIfNeeded(wasPlaying);
           },
         ),
       ),
     );
+  }
+
+  Future<void> _ensurePlaybackIfNeeded(bool wasPlaying) async {
+    if (!wasPlaying) return;
+    if (!mounted) return;
+    if (_playerService == null) return;
+    try {
+      if (_playerService!.isInitialized && _playerService!.isControllerReady) {
+        await _playerService!.play();
+      }
+    } catch (_) {
+      // Silently ignore; playback will remain paused if play fails
+    }
   }
 
   void _openFitModeSelector() {
@@ -1047,51 +1103,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
           }
           _saveAdvancedFeaturesPreferences();
         },
-        onHardwareAccelerationChanged: (value) async {
-          if (_playerService == null || !_isInitialized) {
-            setState(() => _hardwareAcceleration = value);
-            _saveAdvancedFeaturesPreferences();
-            return;
-          }
-
-          setState(() {
-            _hardwareAcceleration = value;
-            _isInitialized = false; // Show loading during switch
-          });
-
-          try {
-            await _playerService!.switchDecoder(
-              value ? vps.DecoderType.hardware : vps.DecoderType.software,
-              _networkCacheSize,
-            );
-            setState(() => _isInitialized = true);
-            _advancedFeaturesService.applyHardwareAcceleration(value);
-            _saveAdvancedFeaturesPreferences();
-
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      'Switched to ${value ? "Hardware" : "Software"} decoder'),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            }
-          } catch (e) {
-            ErrorHandler.logError(e,
-                context: 'VideoPlayerPage.onHardwareAccelerationChanged');
-            setState(() {
-              _hardwareAcceleration = !value; // Revert on error
-              _isInitialized = true;
-            });
-            if (mounted) {
-              ErrorHandler.showErrorSnackBar(
-                context,
-                'Failed to switch decoder: ${ErrorHandler.getUserFriendlyMessage(e)}',
-              );
-            }
-          }
-        },
+        onHardwareAccelerationChanged: _handleHardwareAccelerationChanged,
         onDeinterlaceChanged: (value) {
           setState(() => _deinterlace = value);
           _saveAdvancedFeaturesPreferences();
@@ -1552,6 +1564,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
 
   // Gesture Handling Methods
   void _togglePlayPause() {
+    log("_togglePlayPause- $_isPlaying");
     if (_isPlaying) {
       _playerService?.pause();
     } else {
@@ -1757,6 +1770,63 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
     }
   }
 
+  void _showSleepTimerDialog() async {
+    final duration = await showModalBottomSheet<Duration>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const SleepTimerDialog(),
+    );
+
+    if (duration != null) {
+      _sleepTimer?.cancel();
+      if (duration.inDays == 365) {
+        // End of video logic - handled in position listener
+        setState(() {
+          // We can use a special flag or just handle it differently
+          // For now, let's just show a message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Sleep timer set to end of video')),
+          );
+        });
+      } else {
+        setState(() {
+          _sleepTime = DateTime.now().add(duration);
+        });
+        _sleepTimer = Timer(duration, () {
+          if (mounted) {
+            _playerService?.pause();
+            setState(() {
+              _sleepTime = null;
+            });
+            // Optionally close the player or show a dialog
+          }
+        });
+      }
+    }
+  }
+
+  void _showSubtitleStyleDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => SubtitleStyleDialog(
+        initialFontSize: _subtitleSettings.fontSize,
+        initialColor: Color(_subtitleSettings.textColor),
+        onFontSizeChanged: (size) {
+          setState(() {
+            _subtitleSettings = _subtitleSettings.copyWith(fontSize: size);
+          });
+        },
+        onColorChanged: (color) {
+          setState(() {
+            _subtitleSettings =
+                _subtitleSettings.copyWith(textColor: color.value);
+          });
+        },
+      ),
+    );
+  }
+
   void _handleSubtitleToggle(bool enabled) {
     if (_subtitlesEnabled != enabled) {
       _toggleSubtitles();
@@ -1899,16 +1969,16 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
     });
 
     if (_isLocked) {
-      _showTempOverlay(Icons.lock, 'Locked');
+      _showTempOverlay(LucideIcons.lock, 'Locked');
     } else {
-      _showTempOverlay(Icons.lock_open, 'Unlocked');
+      _showTempOverlay(LucideIcons.unlock, 'Unlocked');
     }
   }
 
   void _handleDoubleTapDown(TapDownDetails details) {
     if (_isLocked) {
       // Create a visual hint that it's locked, or just ignore
-      _showTempOverlay(Icons.lock, 'Locked');
+      _showTempOverlay(LucideIcons.lock, 'Locked');
       _showControls = true; // Show just the lock button (handled in build)
       _resetControlsHideTimer();
       return;
@@ -1920,16 +1990,16 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
     if (tapPosition < screenWidth / 3) {
       // Left third: Seek backward 10s
       _seekBackward();
-      _showTempOverlay(Icons.replay_10, '-10s');
+      _showTempOverlay(LucideIcons.rotateCcw, '-10s');
     } else if (tapPosition > (screenWidth * 2 / 3)) {
       // Right third: Seek forward 10s
       _seekForward();
-      _showTempOverlay(Icons.forward_10, '+10s');
+      _showTempOverlay(LucideIcons.rotateCw, '+10s');
     } else {
       // Center: Toggle Play/Pause
       _togglePlayPause();
       _showTempOverlay(
-        _isPlaying ? Icons.pause : Icons.play_arrow,
+        _isPlaying ? LucideIcons.pause : LucideIcons.play,
         _isPlaying ? 'Pause' : 'Play',
       );
     }
@@ -1953,6 +2023,68 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
         });
       }
     });
+  }
+
+  Future<void> _handleHardwareAccelerationChanged(bool value) async {
+    if (_playerService == null || !_isInitialized) {
+      if (mounted) {
+        setState(() => _hardwareAcceleration = value);
+        _saveAdvancedFeaturesPreferences();
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _hardwareAcceleration = value;
+        _isInitialized = false; // Show loading during switch
+      });
+    }
+
+    try {
+      await _playerService!.switchDecoder(
+        value ? vps.DecoderType.hardware : vps.DecoderType.software,
+        _networkCacheSize,
+      );
+      // Reattach listeners and refresh state after decoder switch
+      _attachServiceListeners();
+      setState(() {
+        _totalDuration = _playerService?.duration ?? Duration.zero;
+        _isPlaying = _playerService?.isPlaying ?? false;
+      });
+      if (mounted) {
+        _advancedFeaturesService.applyHardwareAcceleration(value);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Switched to ${value ? "Hardware" : "Software"} decoder'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      ErrorHandler.logError(e,
+          context: 'VideoPlayerPage.onHardwareAccelerationChanged');
+      if (mounted) {
+        setState(() {
+          _hardwareAcceleration = !value; // Revert on error
+        });
+        ErrorHandler.showErrorSnackBar(
+          context,
+          'Failed to switch decoder: ${ErrorHandler.getUserFriendlyMessage(e)}',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+          // Sync UI state with service state after switch
+          _isPlaying = _playerService?.isPlaying ?? false;
+        });
+        _saveAdvancedFeaturesPreferences();
+      }
+    }
   }
 
   @override
@@ -2041,7 +2173,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                                           color: Colors.white, size: 48),
                                     const SizedBox(height: 8),
                                     Text(
-                                      _dragLabel ?? '',
+                                      _dragLabel,
                                       style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 20,
@@ -2068,25 +2200,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
 
                 // Large center play button overlay (MX Player style)
                 // Always visible when paused, even if controls are hidden
-                if (!_isPlaying && _isInitialized && !_isLocked && !_isDragging)
-                  Center(
-                    child: GestureDetector(
-                      onTap: _togglePlayPause,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.black45,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(
-                          Icons.play_arrow,
-                          color: Colors.white,
-                          size: 48,
-                        ),
-                      ),
-                    ),
-                  ),
+
+                // Center(
+                //   child: InkWell(
+                //     onTap: () => _togglePlayPause(),
+                //     child:
+                //   ),
+                // ),
 
                 // Subtitle overlay
                 if (_subtitlesEnabled && _currentSubtitle != null)
@@ -2124,10 +2244,18 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                       onTogglePlayPause: _togglePlayPause,
                       onOpenEqualizer: _openEqualizer,
                       onOpenVideoEffects: _openVideoEffects,
-                      hasVideoEffects: false, // Placeholder
+                      hasVideoEffects: true, // Enable Video Effects
                       onOpenAdvancedFeatures: _openAdvancedFeatures,
+                      onEnterPip: () {
+                        _playerService?.enterPip();
+                        setState(() {
+                          // Optionally hide controls or update UI
+                          _showControls = false;
+                        });
+                      },
                       onOpenFitModeSelector: _openFitModeSelector,
                       onSeekForward: _seekForward,
+                      title: widget.video.name,
                       onSeekBackward: _seekBackward,
                       onToggleStatistics: () {
                         setState(() {
@@ -2170,26 +2298,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                       ambientModeEnabled: _ambientModeEnabled,
                       onAmbientModeChanged: (value) =>
                           setState(() => _ambientModeEnabled = value),
-                      onHardwareAccelerationChanged: (value) async {
-                        setState(() {
-                          _hardwareAcceleration = value;
-                          _isInitialized = false;
-                        });
-                        try {
-                          await _playerService!.switchDecoder(
-                            value
-                                ? vps.DecoderType.hardware
-                                : vps.DecoderType.software,
-                          );
-                          setState(() => _isInitialized = true);
-                          _saveAdvancedFeaturesPreferences();
-                        } catch (e) {
-                          setState(() {
-                            _hardwareAcceleration = !value;
-                            _isInitialized = true;
-                          });
-                        }
-                      },
+                      onHardwareAccelerationChanged:
+                          _handleHardwareAccelerationChanged,
                       onDeinterlaceChanged: (value) =>
                           setState(() => _deinterlace = value),
                       onFrameDropChanged: (value) =>
@@ -2271,6 +2381,31 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                     ),
                   ),
 
+                // Large center play button overlay (MX Player style)
+                // Always visible when paused, even if controls are hidden
+                if (!_isPlaying && _isInitialized && !_isLocked && !_isDragging)
+                  Center(
+                    child: IconButton(
+                      onPressed: () async => _togglePlayPause(),
+                      icon: Container(
+                        height: 80.h,
+                        width: 80.h,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          LucideIcons.play,
+                          color: Colors.white,
+                          size: 48,
+                        ),
+                      ),
+                    ),
+                  ),
+
                 // Bottom Controls (MX Player Style) - Only when unlocked
                 if (_showControls && !_isLocked)
                   Positioned(
@@ -2296,12 +2431,22 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                             selectedSubtitleTrack: _selectedSubtitleTrack,
                             onTogglePlayPause: _togglePlayPause,
                             onSeek: (pos) => _playerService?.seekTo(pos),
+                            // Skip Previous: Restart or -60s
+                            onSkipPrevious: () {
+                              _playerService?.seekTo(Duration.zero);
+                            },
+                            // Skip Next: End or +60s
+                            onSkipNext: () {
+                              _playerService?.seekTo(_totalDuration);
+                            },
                             onVolumeChanged: (vol) =>
                                 _playerService?.setVolume(vol),
                             onAudioBoostChanged: (boost) =>
                                 _applyAudioBoost(boost),
-                            onBrightnessChanged: (val) =>
-                                setState(() => _brightness = val),
+                            onBrightnessChanged: (val) => setState(() {
+                              _brightness = val;
+                              log('onBrightnessChanged: $val');
+                            }),
                             onPlaybackSpeedChanged: (speed) =>
                                 _playerService?.setPlaybackSpeed(speed),
                             onSubtitlesToggled: _handleSubtitleToggle,
@@ -2331,6 +2476,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                             },
                             onLockToggle: _toggleLock,
                             onToggleFit: _changeAspectRatio,
+                            onOpenSleepTimer: _showSleepTimerDialog,
+                            onOpenSubtitleSettings: _showSubtitleStyleDialog,
                           ),
                         ),
                       ),
@@ -2355,7 +2502,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: const [
-                              Icon(Icons.lock_open,
+                              Icon(LucideIcons.unlock,
                                   color: Colors.white, size: 24),
                               SizedBox(width: 8),
                               Text('Unlock',
@@ -2363,6 +2510,39 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                             ],
                           ),
                         ),
+                      ),
+                    ),
+                  ),
+
+                // Sleep Timer Overlay
+                if (_sleepTime != null)
+                  Positioned(
+                    top: 100,
+                    left: 20,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(LucideIcons.timer,
+                              color: Colors.white, size: 16),
+                          const SizedBox(width: 4),
+                          StreamBuilder(
+                            stream: Stream.periodic(const Duration(seconds: 1)),
+                            builder: (context, snapshot) {
+                              final remaining =
+                                  _sleepTime!.difference(DateTime.now());
+                              if (remaining.isNegative) return const SizedBox();
+                              return Text(
+                                '${remaining.inMinutes}:${(remaining.inSeconds % 60).toString().padLeft(2, '0')}',
+                                style: const TextStyle(color: Colors.white),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -2397,7 +2577,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                     style: TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold)),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 16),
+                  icon:
+                      const Icon(LucideIcons.x, color: Colors.white, size: 16),
                   onPressed: () => setState(() => _showStatistics = false),
                 ),
               ],

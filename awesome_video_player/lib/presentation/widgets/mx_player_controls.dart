@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 /// MX Player-style comprehensive video controls
 class MxPlayerControls extends StatefulWidget {
@@ -25,6 +26,8 @@ class MxPlayerControls extends StatefulWidget {
   final VoidCallback? onOpenSleepTimer;
   final VoidCallback? onLockToggle;
   final VoidCallback? onToggleFit;
+  final VoidCallback? onSkipPrevious; // New
+  final VoidCallback? onSkipNext; // New
   final List<String> availableAudioTracks;
   final List<String> availableSubtitleTracks;
 
@@ -53,6 +56,8 @@ class MxPlayerControls extends StatefulWidget {
     this.onOpenSleepTimer,
     this.onLockToggle,
     this.onToggleFit,
+    this.onSkipPrevious, // Initialize
+    this.onSkipNext, // Initialize
     this.availableAudioTracks = const [],
     this.availableSubtitleTracks = const [],
   });
@@ -151,90 +156,93 @@ class _MxPlayerControlsState extends State<MxPlayerControls> {
 
             // Row 2: Transport Controls
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // Lock Button (Triggers lock on parent)
-                // Note: The parent passes a callback for this. We need to add it to the widget.
-                // For now, we'll use a placeholder or reuse a callback if available.
-                // The current `MxPlayerControls` definition doesn't have `onLock`.
-                // We will add it to the Widget definition in a moment, but for this step
-                // we'll comment it out or put a temporary icon until we update the signature.
                 IconButton(
-                  icon: const Icon(Icons.lock_open, color: Colors.white),
+                  icon: const Icon(LucideIcons.unlock, color: Colors.white),
                   onPressed: () {
-                    // We need to bubble this up.
-                    // Since we can't change the signature in this tool call easily without
-                    // changing the header too, we'll assume we can use `onTogglePlayPause`
-                    // or we need to do a multi-replace to update the class definition too.
-                    // I will update the class definition in this same tool call.
                     widget.onLockToggle?.call();
                   },
                 ),
 
-                // Transport Controls Centered
+                // Transport Controls Centered and Scalable
+                Expanded(
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(LucideIcons.skipBack,
+                                color: Colors.white),
+                            onPressed: widget.onSkipPrevious,
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(LucideIcons.rotateCcw,
+                                color: Colors.white),
+                            onPressed: () => widget.onSeek(
+                                widget.position - const Duration(seconds: 10)),
+                          ),
+                          const SizedBox(width: 16),
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              color: Colors.black26,
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                  widget.isPlaying
+                                      ? LucideIcons.pause
+                                      : LucideIcons.play,
+                                  color: Colors.white),
+                              iconSize: 32,
+                              onPressed: widget.onTogglePlayPause,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          IconButton(
+                            icon: const Icon(LucideIcons.rotateCw,
+                                color: Colors.white),
+                            onPressed: () => widget.onSeek(
+                                widget.position + const Duration(seconds: 10)),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(LucideIcons.skipForward,
+                                color: Colors.white),
+                            onPressed: widget.onSkipNext,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Right side controls (Speed & Fit)
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Playback Speed
                     IconButton(
-                      icon:
-                          const Icon(Icons.skip_previous, color: Colors.white),
+                      icon: const Icon(LucideIcons.gauge, color: Colors.white),
                       onPressed: () {
-                        // Check availability or remove if not needed
-                        // Typically "Previous" in playlist
+                        _showPlaybackSpeedDialog(context);
                       },
                     ),
-                    const SizedBox(width: 8),
+
+                    // Fit Screen (Aspect Ratio)
                     IconButton(
-                      icon: const Icon(Icons.replay_10, color: Colors.white),
-                      onPressed: () => widget.onSeek(
-                          widget.position - const Duration(seconds: 10)),
-                    ),
-                    const SizedBox(width: 16),
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                        color: Colors.black26,
-                      ),
-                      child: IconButton(
-                        icon: Icon(
-                            widget.isPlaying ? Icons.pause : Icons.play_arrow,
-                            color: Colors.white),
-                        iconSize: 32,
-                        onPressed: widget.onTogglePlayPause,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    IconButton(
-                      icon: const Icon(Icons.forward_10, color: Colors.white),
-                      onPressed: () => widget.onSeek(
-                          widget.position + const Duration(seconds: 10)),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.skip_next, color: Colors.white),
+                      icon:
+                          const Icon(LucideIcons.maximize, color: Colors.white),
                       onPressed: () {
-                        // Next functionality
+                        // Toggle fit mode
+                        widget.onToggleFit?.call();
                       },
                     ),
                   ],
-                ),
-
-                // Playback Speed
-                IconButton(
-                  icon: const Icon(Icons.speed, color: Colors.white),
-                  onPressed: () {
-                    _showPlaybackSpeedDialog(context);
-                  },
-                ),
-
-                // Fit Screen (Aspect Ratio)
-                IconButton(
-                  icon: const Icon(Icons.aspect_ratio, color: Colors.white),
-                  onPressed: () {
-                    // Toggle fit mode
-                    widget.onToggleFit?.call();
-                  },
                 ),
               ],
             ),
@@ -276,7 +284,8 @@ class _MxPlayerControlsState extends State<MxPlayerControls> {
                       final isSelected = widget.playbackSpeed == speed;
                       return ListTile(
                         leading: isSelected
-                            ? const Icon(Icons.check, color: Colors.blueAccent)
+                            ? const Icon(LucideIcons.check,
+                                color: Colors.blueAccent)
                             : const SizedBox(width: 24),
                         title: Text(
                           '${speed}x',

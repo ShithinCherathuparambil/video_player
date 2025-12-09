@@ -31,8 +31,9 @@ class _SettingsPageState extends State<SettingsPage>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   final UIPreferencesService _uiPreferencesService = UIPreferencesService();
-  final AdvancedFeaturesService _advancedFeaturesService = AdvancedFeaturesService();
-  
+  final AdvancedFeaturesService _advancedFeaturesService =
+      AdvancedFeaturesService();
+
   // UI Preferences state
   bool _autoLoadSubtitles = true;
   bool _rememberPosition = true;
@@ -44,6 +45,7 @@ class _SettingsPageState extends State<SettingsPage>
   bool _doubleTapSkip = true;
   bool _hardwareAcceleration = true;
   bool _networkCaching = true;
+  int _autoHideControlsDelay = 2000;
 
   @override
   void initState() {
@@ -65,19 +67,21 @@ class _SettingsPageState extends State<SettingsPage>
   Future<void> _loadPreferences() async {
     final uiPrefs = await _uiPreferencesService.loadPreferences();
     final advancedPrefs = await _advancedFeaturesService.loadPreferences();
-    
+
     if (mounted) {
       setState(() {
         _autoLoadSubtitles = uiPrefs['autoLoadSubtitles'] ?? true;
         _rememberPosition = advancedPrefs['rememberPosition'] ?? true;
         _autoPlayNext = advancedPrefs['autoPlayNext'] ?? true;
-        _defaultPlaybackSpeed = (uiPrefs['defaultPlaybackSpeed'] ?? 1.0).toDouble();
+        _defaultPlaybackSpeed =
+            (uiPrefs['defaultPlaybackSpeed'] ?? 1.0).toDouble();
         _volumeGesture = uiPrefs['volumeGesture'] ?? true;
         _brightnessGesture = uiPrefs['brightnessGesture'] ?? true;
         _seekGesture = uiPrefs['seekGesture'] ?? true;
         _doubleTapSkip = uiPrefs['doubleTapSkip'] ?? true;
         _hardwareAcceleration = advancedPrefs['hardwareAcceleration'] ?? true;
         _networkCaching = advancedPrefs['networkCaching'] ?? true;
+        _autoHideControlsDelay = advancedPrefs['autoHideControlsDelay'] ?? 2000;
       });
     }
   }
@@ -95,8 +99,8 @@ class _SettingsPageState extends State<SettingsPage>
       hardwareAcceleration: _hardwareAcceleration,
       networkCaching: _networkCaching,
     );
-    
-    // Also update advanced features service for rememberPosition and autoPlayNext
+
+    // Also update advanced features service
     final advancedPrefs = await _advancedFeaturesService.loadPreferences();
     await _advancedFeaturesService.savePreferences(
       hardwareAcceleration: _hardwareAcceleration,
@@ -113,6 +117,7 @@ class _SettingsPageState extends State<SettingsPage>
       rememberPosition: _rememberPosition,
       autoPlayNext: _autoPlayNext,
       shuffleEnabled: advancedPrefs['shuffleEnabled'] ?? false,
+      autoHideControlsDelay: _autoHideControlsDelay,
     );
   }
 
@@ -146,359 +151,398 @@ class _SettingsPageState extends State<SettingsPage>
               SizedBox(height: 16.h),
               // Theme Section
               _buildSection(
-              context,
-              title: 'Appearance',
-              children: [
-                BlocBuilder<ThemeBloc, ThemeState>(
-                  builder: (context, state) {
-                    return Column(
-                      children: [
-                        RadioListTile<ThemeMode>(
-                          title: const Text('System Theme'),
-                          subtitle: const Text('Follow system theme settings'),
-                          value: ThemeMode.system,
-                          groupValue: state is ThemeLoaded
-                              ? state.themeMode
-                              : ThemeMode.system,
-                          onChanged: (ThemeMode? value) {
-                            if (value != null) {
-                              context.read<ThemeBloc>().add(ChangeTheme(value));
-                            }
-                          },
-                        ),
-                        RadioListTile<ThemeMode>(
-                          title: const Text('Light Theme'),
-                          subtitle: const Text('Always use light theme'),
-                          value: ThemeMode.light,
-                          groupValue: state is ThemeLoaded
-                              ? state.themeMode
-                              : ThemeMode.system,
-                          onChanged: (ThemeMode? value) {
-                            if (value != null) {
-                              context.read<ThemeBloc>().add(ChangeTheme(value));
-                            }
-                          },
-                        ),
-                        RadioListTile<ThemeMode>(
-                          title: const Text('Dark Theme'),
-                          subtitle: const Text('Always use dark theme'),
-                          value: ThemeMode.dark,
-                          groupValue: state is ThemeLoaded
-                              ? state.themeMode
-                              : ThemeMode.system,
-                          onChanged: (ThemeMode? value) {
-                            if (value != null) {
-                              context.read<ThemeBloc>().add(ChangeTheme(value));
-                            }
-                          },
-                        ),
-                        const Divider(),
-                        _buildMXStyleSwitchTile(
-                          context,
-                          title: 'Grid View',
-                          subtitle: 'Display videos in grid layout',
-                          value: state is ThemeLoaded ? state.isGridView : true,
-                          icon: state is ThemeLoaded && state.isGridView
-                              ? Icons.grid_view
-                              : Icons.view_list,
-                          onChanged: (bool value) async {
-                            await MicroInteractions.hapticFeedback(
-                              type: HapticFeedbackType.lightImpact,
-                            );
-                            context
-                                .read<ThemeBloc>()
-                                .add(ToggleGridView(value));
-                          },
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Video Section
-            _buildSection(
-              context,
-              title: 'Video',
-              children: [
-                BlocBuilder<ThemeBloc, ThemeState>(
-                  builder: (context, state) {
-                    return Column(
-                      children: [
-                        _buildMXStyleSwitchTile(
-                          context,
-                          title: 'Subtitles',
-                          subtitle: 'Show subtitles in video player',
-                          value: state is ThemeLoaded
-                              ? state.subtitlesEnabled
-                              : false,
-                          icon: state is ThemeLoaded && state.subtitlesEnabled
-                              ? Icons.subtitles
-                              : Icons.subtitles_off,
-                          onChanged: (bool value) async {
-                            await MicroInteractions.hapticFeedback(
-                              type: HapticFeedbackType.lightImpact,
-                            );
-                            context
-                                .read<ThemeBloc>()
-                                .add(ToggleSubtitles(value));
-                          },
-                        ),
-                        const Divider(),
-                        ListTile(
-                          title: const Text('Video Decoder'),
-                          subtitle: Text(
-                            state is ThemeLoaded
-                                ? _getDecoderDescription(state.videoDecoder)
-                                : 'Auto',
+                context,
+                title: 'Appearance',
+                children: [
+                  BlocBuilder<ThemeBloc, ThemeState>(
+                    builder: (context, state) {
+                      return Column(
+                        children: [
+                          RadioListTile<ThemeMode>(
+                            title: const Text('System Theme'),
+                            subtitle:
+                                const Text('Follow system theme settings'),
+                            value: ThemeMode.system,
+                            groupValue: state is ThemeLoaded
+                                ? state.themeMode
+                                : ThemeMode.system,
+                            onChanged: (ThemeMode? value) {
+                              if (value != null) {
+                                context
+                                    .read<ThemeBloc>()
+                                    .add(ChangeTheme(value));
+                              }
+                            },
                           ),
-                          leading: const Icon(Icons.video_settings),
-                          trailing: const Icon(Icons.arrow_forward_ios),
-                          onTap: () {
-                            _showDecoderDialog(context, state);
-                          },
-                        ),
-                        SwitchListTile(
-                          title: const Text('Hardware Acceleration'),
-                          subtitle: const Text(
-                              'Use hardware acceleration for better performance'),
-                          value: state is ThemeLoaded
-                              ? state.hardwareAcceleration
-                              : true,
-                          onChanged: (bool value) {
-                            context
-                                .read<ThemeBloc>()
-                                .add(ToggleHardwareAcceleration(value));
-                          },
-                          secondary: Icon(
-                            state is ThemeLoaded && state.hardwareAcceleration
-                                ? Icons.speed
-                                : Icons.speed_outlined,
-                            color: Theme.of(context).colorScheme.primary,
+                          RadioListTile<ThemeMode>(
+                            title: const Text('Light Theme'),
+                            subtitle: const Text('Always use light theme'),
+                            value: ThemeMode.light,
+                            groupValue: state is ThemeLoaded
+                                ? state.themeMode
+                                : ThemeMode.system,
+                            onChanged: (ThemeMode? value) {
+                              if (value != null) {
+                                context
+                                    .read<ThemeBloc>()
+                                    .add(ChangeTheme(value));
+                              }
+                            },
+                          ),
+                          RadioListTile<ThemeMode>(
+                            title: const Text('Dark Theme'),
+                            subtitle: const Text('Always use dark theme'),
+                            value: ThemeMode.dark,
+                            groupValue: state is ThemeLoaded
+                                ? state.themeMode
+                                : ThemeMode.system,
+                            onChanged: (ThemeMode? value) {
+                              if (value != null) {
+                                context
+                                    .read<ThemeBloc>()
+                                    .add(ChangeTheme(value));
+                              }
+                            },
+                          ),
+                          const Divider(),
+                          _buildMXStyleSwitchTile(
+                            context,
+                            title: 'Grid View',
+                            subtitle: 'Display videos in grid layout',
+                            value:
+                                state is ThemeLoaded ? state.isGridView : true,
+                            icon: state is ThemeLoaded && state.isGridView
+                                ? Icons.grid_view
+                                : Icons.view_list,
+                            onChanged: (bool value) async {
+                              await MicroInteractions.hapticFeedback(
+                                type: HapticFeedbackType.lightImpact,
+                              );
+                              context
+                                  .read<ThemeBloc>()
+                                  .add(ToggleGridView(value));
+                            },
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Video Section
+              _buildSection(
+                context,
+                title: 'Video',
+                children: [
+                  BlocBuilder<ThemeBloc, ThemeState>(
+                    builder: (context, state) {
+                      return Column(
+                        children: [
+                          _buildMXStyleSwitchTile(
+                            context,
+                            title: 'Subtitles',
+                            subtitle: 'Show subtitles in video player',
+                            value: state is ThemeLoaded
+                                ? state.subtitlesEnabled
+                                : false,
+                            icon: state is ThemeLoaded && state.subtitlesEnabled
+                                ? Icons.subtitles
+                                : Icons.subtitles_off,
+                            onChanged: (bool value) async {
+                              await MicroInteractions.hapticFeedback(
+                                type: HapticFeedbackType.lightImpact,
+                              );
+                              context
+                                  .read<ThemeBloc>()
+                                  .add(ToggleSubtitles(value));
+                            },
+                          ),
+                          const Divider(),
+                          ListTile(
+                            title: const Text('Video Decoder'),
+                            subtitle: Text(
+                              state is ThemeLoaded
+                                  ? _getDecoderDescription(state.videoDecoder)
+                                  : 'Auto',
+                            ),
+                            leading: const Icon(Icons.video_settings),
+                            trailing: const Icon(Icons.arrow_forward_ios),
+                            onTap: () {
+                              _showDecoderDialog(context, state);
+                            },
+                          ),
+                          SwitchListTile(
+                            title: const Text('Hardware Acceleration'),
+                            subtitle: const Text(
+                                'Use hardware acceleration for better performance'),
+                            value: state is ThemeLoaded
+                                ? state.hardwareAcceleration
+                                : true,
+                            onChanged: (bool value) {
+                              context
+                                  .read<ThemeBloc>()
+                                  .add(ToggleHardwareAcceleration(value));
+                            },
+                            secondary: Icon(
+                              state is ThemeLoaded && state.hardwareAcceleration
+                                  ? Icons.speed
+                                  : Icons.speed_outlined,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Subtitle Settings Section
+              _buildSection(
+                context,
+                title: 'Subtitles',
+                children: [
+                  ListTile(
+                    title: const Text('Subtitle Settings'),
+                    subtitle: const Text(
+                        'Customize subtitle appearance and behavior'),
+                    leading: const Icon(Icons.subtitles),
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () async {
+                      final defaultSettings = const SubtitleSettings();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SubtitleCustomizationPage(
+                            initialSettings: defaultSettings,
+                            onSettingsChanged: (settings) {
+                              // Save subtitle settings
+                              _saveSubtitleSettings(settings);
+                            },
                           ),
                         ),
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Subtitle Settings Section
-            _buildSection(
-              context,
-              title: 'Subtitles',
-              children: [
-                ListTile(
-                  title: const Text('Subtitle Settings'),
-                  subtitle: const Text('Customize subtitle appearance and behavior'),
-                  leading: const Icon(Icons.subtitles),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () async {
-                    final defaultSettings = const SubtitleSettings();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SubtitleCustomizationPage(
-                          initialSettings: defaultSettings,
-                          onSettingsChanged: (settings) {
-                            // Save subtitle settings
-                            _saveSubtitleSettings(settings);
+                      );
+                    },
+                  ),
+                  SwitchListTile(
+                    title: const Text('Auto-load Subtitles'),
+                    subtitle: const Text('Automatically load subtitle files'),
+                    value: _autoLoadSubtitles,
+                    onChanged: (value) async {
+                      setState(() => _autoLoadSubtitles = value);
+                      await _uiPreferencesService.savePreference(
+                          'autoLoadSubtitles', value);
+                      MicroInteractions.hapticFeedback(
+                          type: HapticFeedbackType.lightImpact);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Playback Settings Section
+              _buildSection(
+                context,
+                title: 'Playback',
+                children: [
+                  SwitchListTile(
+                    title: const Text('Remember Position'),
+                    subtitle: const Text('Resume videos where you left off'),
+                    value: _rememberPosition,
+                    onChanged: (value) async {
+                      setState(() => _rememberPosition = value);
+                      await _saveAllPreferences();
+                      MicroInteractions.hapticFeedback(
+                          type: HapticFeedbackType.lightImpact);
+                    },
+                  ),
+                  SwitchListTile(
+                    title: const Text('Auto-play Next'),
+                    subtitle:
+                        const Text('Automatically play next video in playlist'),
+                    value: _autoPlayNext,
+                    onChanged: (value) async {
+                      setState(() => _autoPlayNext = value);
+                      await _saveAllPreferences();
+                      MicroInteractions.hapticFeedback(
+                          type: HapticFeedbackType.lightImpact);
+                    },
+                  ),
+                  ListTile(
+                    title: const Text('Default Playback Speed'),
+                    subtitle: Text('${_defaultPlaybackSpeed}x'),
+                    leading: const Icon(Icons.speed),
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () async {
+                      double? selectedSpeed;
+                      await showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => PlaybackSpeedSelector(
+                          currentSpeed: _defaultPlaybackSpeed,
+                          onSpeedChanged: (speed) {
+                            selectedSpeed = speed;
+                            Navigator.pop(context);
                           },
                         ),
-                      ),
-                    );
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Auto-load Subtitles'),
-                  subtitle: const Text('Automatically load subtitle files'),
-                  value: _autoLoadSubtitles,
-                  onChanged: (value) async {
-                    setState(() => _autoLoadSubtitles = value);
-                    await _uiPreferencesService.savePreference('autoLoadSubtitles', value);
-                    MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Playback Settings Section
-            _buildSection(
-              context,
-              title: 'Playback',
-              children: [
-                SwitchListTile(
-                  title: const Text('Remember Position'),
-                  subtitle: const Text('Resume videos where you left off'),
-                  value: _rememberPosition,
-                  onChanged: (value) async {
-                    setState(() => _rememberPosition = value);
-                    await _saveAllPreferences();
-                    MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Auto-play Next'),
-                  subtitle: const Text('Automatically play next video in playlist'),
-                  value: _autoPlayNext,
-                  onChanged: (value) async {
-                    setState(() => _autoPlayNext = value);
-                    await _saveAllPreferences();
-                    MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
-                  },
-                ),
-                ListTile(
-                  title: const Text('Default Playback Speed'),
-                  subtitle: Text('${_defaultPlaybackSpeed}x'),
-                  leading: const Icon(Icons.speed),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () async {
-                    double? selectedSpeed;
-                    await showModalBottomSheet(
-                      context: context,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => PlaybackSpeedSelector(
-                        currentSpeed: _defaultPlaybackSpeed,
-                        onSpeedChanged: (speed) {
-                          selectedSpeed = speed;
-                          Navigator.pop(context);
-                        },
-                      ),
-                    );
-                    if (selectedSpeed != null && mounted) {
-                      setState(() => _defaultPlaybackSpeed = selectedSpeed!);
-                      await _uiPreferencesService.savePreference('defaultPlaybackSpeed', selectedSpeed!);
-                      MicroInteractions.hapticFeedback(type: HapticFeedbackType.mediumImpact);
-                    }
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Gesture Settings Section
-            _buildSection(
-              context,
-              title: 'Gestures',
-              children: [
-                SwitchListTile(
-                  title: const Text('Volume Gesture'),
-                  subtitle: const Text('Swipe right side to adjust volume'),
-                  value: _volumeGesture,
-                  onChanged: (value) async {
-                    setState(() => _volumeGesture = value);
-                    await _uiPreferencesService.savePreference('volumeGesture', value);
-                    MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Brightness Gesture'),
-                  subtitle: const Text('Swipe left side to adjust brightness'),
-                  value: _brightnessGesture,
-                  onChanged: (value) async {
-                    setState(() => _brightnessGesture = value);
-                    await _uiPreferencesService.savePreference('brightnessGesture', value);
-                    MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Seek Gesture'),
-                  subtitle: const Text('Swipe horizontally to seek'),
-                  value: _seekGesture,
-                  onChanged: (value) async {
-                    setState(() => _seekGesture = value);
-                    await _uiPreferencesService.savePreference('seekGesture', value);
-                    MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Double-tap Skip'),
-                  subtitle: const Text('Double-tap to skip 10 seconds'),
-                  value: _doubleTapSkip,
-                  onChanged: (value) async {
-                    setState(() => _doubleTapSkip = value);
-                    await _uiPreferencesService.savePreference('doubleTapSkip', value);
-                    MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Advanced Settings Section
-            _buildSection(
-              context,
-              title: 'Advanced',
-              children: [
-                SwitchListTile(
-                  title: const Text('Hardware Acceleration'),
-                  subtitle: const Text('Use hardware decoder when available'),
-                  value: _hardwareAcceleration,
-                  onChanged: (value) async {
-                    setState(() => _hardwareAcceleration = value);
-                    await _saveAllPreferences();
-                    MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Network Caching'),
-                  subtitle: const Text('Cache network streams for smoother playback'),
-                  value: _networkCaching,
-                  onChanged: (value) async {
-                    setState(() => _networkCaching = value);
-                    await _saveAllPreferences();
-                    MicroInteractions.hapticFeedback(type: HapticFeedbackType.lightImpact);
-                  },
-                ),
-                ListTile(
-                  title: const Text('Clear Watch History'),
-                  subtitle: const Text('Remove all saved playback positions'),
-                  leading: const Icon(Icons.history),
-                  onTap: () {
-                    _showClearHistoryDialog(context);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // About Section
-            _buildSection(
-              context,
-              title: 'About',
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: const Text('Version'),
-                  subtitle: const Text('1.0.0'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.description_outlined),
-                  title: const Text('Privacy Policy'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const PrivacyPolicyPage(),
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.description_outlined),
-                  title: const Text('Terms of Service'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const TermsOfServicePage(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
+                      );
+                      if (selectedSpeed != null && mounted) {
+                        setState(() => _defaultPlaybackSpeed = selectedSpeed!);
+                        await _uiPreferencesService.savePreference(
+                            'defaultPlaybackSpeed', selectedSpeed!);
+                        MicroInteractions.hapticFeedback(
+                            type: HapticFeedbackType.mediumImpact);
+                      }
+                    },
+                  ),
+                  ListTile(
+                    title: const Text('Auto-hide Controls'),
+                    subtitle: Text(
+                      _getAutoHideDescription(_autoHideControlsDelay),
+                    ),
+                    leading: const Icon(Icons.timer_outlined),
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () {
+                      _showAutoHideDialog(context);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Gesture Settings Section
+              _buildSection(
+                context,
+                title: 'Gestures',
+                children: [
+                  SwitchListTile(
+                    title: const Text('Volume Gesture'),
+                    subtitle: const Text('Swipe right side to adjust volume'),
+                    value: _volumeGesture,
+                    onChanged: (value) async {
+                      setState(() => _volumeGesture = value);
+                      await _uiPreferencesService.savePreference(
+                          'volumeGesture', value);
+                      MicroInteractions.hapticFeedback(
+                          type: HapticFeedbackType.lightImpact);
+                    },
+                  ),
+                  SwitchListTile(
+                    title: const Text('Brightness Gesture'),
+                    subtitle:
+                        const Text('Swipe left side to adjust brightness'),
+                    value: _brightnessGesture,
+                    onChanged: (value) async {
+                      setState(() => _brightnessGesture = value);
+                      await _uiPreferencesService.savePreference(
+                          'brightnessGesture', value);
+                      MicroInteractions.hapticFeedback(
+                          type: HapticFeedbackType.lightImpact);
+                    },
+                  ),
+                  SwitchListTile(
+                    title: const Text('Seek Gesture'),
+                    subtitle: const Text('Swipe horizontally to seek'),
+                    value: _seekGesture,
+                    onChanged: (value) async {
+                      setState(() => _seekGesture = value);
+                      await _uiPreferencesService.savePreference(
+                          'seekGesture', value);
+                      MicroInteractions.hapticFeedback(
+                          type: HapticFeedbackType.lightImpact);
+                    },
+                  ),
+                  SwitchListTile(
+                    title: const Text('Double-tap Skip'),
+                    subtitle: const Text('Double-tap to skip 10 seconds'),
+                    value: _doubleTapSkip,
+                    onChanged: (value) async {
+                      setState(() => _doubleTapSkip = value);
+                      await _uiPreferencesService.savePreference(
+                          'doubleTapSkip', value);
+                      MicroInteractions.hapticFeedback(
+                          type: HapticFeedbackType.lightImpact);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Advanced Settings Section
+              _buildSection(
+                context,
+                title: 'Advanced',
+                children: [
+                  SwitchListTile(
+                    title: const Text('Hardware Acceleration'),
+                    subtitle: const Text('Use hardware decoder when available'),
+                    value: _hardwareAcceleration,
+                    onChanged: (value) async {
+                      setState(() => _hardwareAcceleration = value);
+                      await _saveAllPreferences();
+                      MicroInteractions.hapticFeedback(
+                          type: HapticFeedbackType.lightImpact);
+                    },
+                  ),
+                  SwitchListTile(
+                    title: const Text('Network Caching'),
+                    subtitle: const Text(
+                        'Cache network streams for smoother playback'),
+                    value: _networkCaching,
+                    onChanged: (value) async {
+                      setState(() => _networkCaching = value);
+                      await _saveAllPreferences();
+                      MicroInteractions.hapticFeedback(
+                          type: HapticFeedbackType.lightImpact);
+                    },
+                  ),
+                  ListTile(
+                    title: const Text('Clear Watch History'),
+                    subtitle: const Text('Remove all saved playback positions'),
+                    leading: const Icon(Icons.history),
+                    onTap: () {
+                      _showClearHistoryDialog(context);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // About Section
+              _buildSection(
+                context,
+                title: 'About',
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: const Text('Version'),
+                    subtitle: const Text('1.0.0'),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.description_outlined),
+                    title: const Text('Privacy Policy'),
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const PrivacyPolicyPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.description_outlined),
+                    title: const Text('Terms of Service'),
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const TermsOfServicePage(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -715,6 +759,53 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
+  String _getAutoHideDescription(int delay) {
+    return '${delay ~/ 1000} seconds';
+  }
+
+  void _showAutoHideDialog(BuildContext context) {
+    final options = [
+      {'label': '2 Seconds', 'value': 2000},
+      {'label': '3 Seconds', 'value': 3000},
+      {'label': '4 Seconds', 'value': 4000},
+      {'label': '5 Seconds', 'value': 5000},
+      {'label': '10 Seconds', 'value': 10000},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Auto-hide Controls'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: options.map((option) {
+            final value = option['value'] as int;
+            return RadioListTile<int>(
+              title: Text(option['label'] as String),
+              value: value,
+              groupValue: _autoHideControlsDelay,
+              onChanged: (newValue) async {
+                if (newValue != null) {
+                  setState(() => _autoHideControlsDelay = newValue);
+                  await _saveAllPreferences();
+                  if (context.mounted) Navigator.pop(context);
+                  await MicroInteractions.hapticFeedback(
+                      type: HapticFeedbackType.selectionClick);
+                }
+              },
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _saveSubtitleSettings(SubtitleSettings settings) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -757,7 +848,8 @@ class _SettingsPageState extends State<SettingsPage>
                     duration: Duration(seconds: 2),
                   ),
                 );
-                MicroInteractions.hapticFeedback(type: HapticFeedbackType.mediumImpact);
+                MicroInteractions.hapticFeedback(
+                    type: HapticFeedbackType.mediumImpact);
               }
             },
             child: const Text('Clear', style: TextStyle(color: Colors.red)),
