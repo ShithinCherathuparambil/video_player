@@ -17,6 +17,7 @@ class FloatingVideoControls extends StatefulWidget {
   final VoidCallback onToggleStatistics;
   final VoidCallback onOpenPlaylist;
   final VoidCallback onOpenChapters;
+  final VoidCallback? onBookmarksTap; // New callback
   final ValueChanged<double> onPlaybackSpeedChanged;
   final double playbackSpeed;
   final bool showStatistics;
@@ -82,6 +83,7 @@ class FloatingVideoControls extends StatefulWidget {
     required this.onToggleStatistics,
     required this.onOpenPlaylist,
     required this.onOpenChapters,
+    this.onBookmarksTap,
     required this.onPlaybackSpeedChanged,
     required this.playbackSpeed,
     required this.showStatistics,
@@ -312,6 +314,14 @@ class _FloatingVideoControlsState extends State<FloatingVideoControls>
             onPressed: () {
               _showSubtitleTrackSelection();
             },
+            backgroundColor: Colors.transparent,
+          ),
+          const SizedBox(width: 8),
+
+          // Bookmarks
+          _buildGlassButton(
+            icon: Icons.bookmark_border,
+            onPressed: widget.onBookmarksTap ?? () {},
             backgroundColor: Colors.transparent,
           ),
           const SizedBox(width: 8),

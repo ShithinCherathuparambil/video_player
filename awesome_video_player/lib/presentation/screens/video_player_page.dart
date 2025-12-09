@@ -1,6 +1,4 @@
 import 'dart:async'; // Added for Timer and StreamSubscription
-import 'dart:io';
-import 'dart:math';
 import 'dart:ui'; // For ImageFilter
 
 import 'package:flutter/material.dart';
@@ -42,6 +40,8 @@ import 'package:lumeo/core/services/chapter_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lumeo/presentation/widgets/video_fit_mode_selector.dart';
 import 'package:lumeo/presentation/widgets/mx_player_controls.dart';
+import 'package:lumeo/data/repositories/bookmarks_repository.dart';
+import 'package:lumeo/domain/entities/bookmark.dart';
 
 class VideoPlayerPage extends StatefulWidget {
   final VideoFile video;
@@ -148,10 +148,11 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
   // UI State
   bool _showStatistics = false;
 
+  // Bookmarks
+  BookmarksRepository? _bookmarksRepository;
+
   // Cinematic Ambient Mode
   bool _ambientModeEnabled = false;
-
-  AnimationController? _controlsAnimationController;
 
   // Playback statistics
   double _fps = 0.0;
@@ -192,6 +193,15 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
         _subtitlesEnabled = themeState.subtitlesEnabled;
       });
     }
+
+    // Initialize Bookmarks Repository
+    BookmarksRepository.create().then((repo) {
+      if (mounted) {
+        setState(() {
+          _bookmarksRepository = repo;
+        });
+      }
+    });
 
     // Load advanced features preferences
     await _loadAdvancedFeaturesPreferences();
@@ -1549,6 +1559,204 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
     }
   }
 
+  void _showBookmarksDialog() {
+    if (_bookmarksRepository == null) return;
+
+    _toggleControls(); // Hide controls while showing dialog
+
+    // Pause while in bookmarks menu
+    bool wasPlaying = _isPlaying;
+    if (wasPlaying) {
+      _playerService?.pause();
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final bookmarks =
+                _bookmarksRepository!.getBookmarks(_currentVideo.path);
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              decoration: const BoxDecoration(
+                color: Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Scene Bookmarks',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.add,
+                                  color: Colors.blueAccent),
+                              onPressed: () async {
+                                Navigator.pop(
+                                    context); // Close sheet to show add dialog
+                                await _showAddBookmarkDialog();
+                                // Re-open sheet after adding? Or just let user play.
+                                // Typically user wants to mark and continue.
+                                // If they want to see list, they open it again.
+                              },
+                            ),
+                            IconButton(
+                              icon:
+                                  const Icon(Icons.close, color: Colors.white),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(color: Colors.white24, height: 1),
+
+                  // List
+                  Expanded(
+                    child: bookmarks.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No bookmarks yet',
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: bookmarks.length,
+                            itemBuilder: (context, index) {
+                              final bookmark = bookmarks[index];
+                              final timestamp = bookmark.timestamp;
+                              final formattedTime =
+                                  '${timestamp.inHours.toString().padLeft(2, '0')}:${(timestamp.inMinutes % 60).toString().padLeft(2, '0')}:${(timestamp.inSeconds % 60).toString().padLeft(2, '0')}';
+
+                              return ListTile(
+                                leading: const Icon(Icons.bookmark,
+                                    color: Colors.blueAccent),
+                                title: Text(
+                                  bookmark.label,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                subtitle: Text(
+                                  formattedTime,
+                                  style: const TextStyle(color: Colors.white54),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.redAccent),
+                                  onPressed: () async {
+                                    await _bookmarksRepository!
+                                        .removeBookmark(bookmark.id);
+                                    setModalState(() {}); // Refresh list
+                                  },
+                                ),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _playerService?.seekTo(bookmark.timestamp);
+                                  if (wasPlaying) {
+                                    _playerService?.play();
+                                  }
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) {
+      if (wasPlaying) {
+        _playerService?.play();
+      }
+    });
+  }
+
+  Future<void> _showAddBookmarkDialog() async {
+    final TextEditingController _labelController = TextEditingController();
+    final currentPos = _currentPosition;
+
+    // Default label: "Scene at HH:MM:SS"
+    final formattedTime =
+        '${currentPos.inHours.toString().padLeft(2, '0')}:${(currentPos.inMinutes % 60).toString().padLeft(2, '0')}:${(currentPos.inSeconds % 60).toString().padLeft(2, '0')}';
+    _labelController.text = 'Scene at $formattedTime';
+
+    bool wasPlaying = _isPlaying;
+    if (wasPlaying) {
+      _playerService?.pause();
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        title:
+            const Text('Add Bookmark', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: _labelController,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Bookmark Label',
+            hintStyle: TextStyle(color: Colors.white38),
+            enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: Colors.white24)),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (_bookmarksRepository != null) {
+                final newBookmark = Bookmark(
+                  id: DateTime.now()
+                      .millisecondsSinceEpoch
+                      .toString(), // Simple ID generation
+                  videoPath: _currentVideo.path,
+                  timestamp: currentPos,
+                  label: _labelController.text,
+                  createdAt: DateTime.now(),
+                );
+                await _bookmarksRepository!.addBookmark(newBookmark);
+              }
+              Navigator.pop(context);
+            },
+            child:
+                const Text('Save', style: TextStyle(color: Colors.blueAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (wasPlaying) {
+      _playerService?.play();
+    }
+  }
+
   void _handleSubtitleToggle(bool enabled) {
     if (_subtitlesEnabled != enabled) {
       _toggleSubtitles();
@@ -1927,11 +2135,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage>
                         });
                       },
                       onOpenPlaylist: _openPlaylist,
-                      onOpenChapters: _openChapters,
-                      onPlaybackSpeedChanged: (speed) {
+                      onOpenChapters: () => _openChapters(),
+                      onBookmarksTap: _showBookmarksDialog,
+                      onPlaybackSpeedChanged: (value) async {
                         setState(() {
-                          _playbackSpeed = speed;
-                          _playerService?.setPlaybackSpeed(speed);
+                          _playbackSpeed = value;
+                          _playerService?.setPlaybackSpeed(value);
                         });
                       },
                       playbackSpeed: _playbackSpeed,
